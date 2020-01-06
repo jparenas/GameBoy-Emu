@@ -1,3 +1,0 @@
-/Users/juanarenas/Documents/Proyectos/GameBoy/build/CMakeFiles/rebuild_cache.dir
-/Users/juanarenas/Documents/Proyectos/GameBoy/build/CMakeFiles/edit_cache.dir
-/Users/juanarenas/Documents/Proyectos/GameBoy/build/CMakeFiles/GameBoy.dir
