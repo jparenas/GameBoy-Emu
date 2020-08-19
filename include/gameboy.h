@@ -6,7 +6,7 @@
 #define DIV_REGISTER_UPDATE_FREQUENCY 16384
 #define DIV_REGISTER_UPDATE_TICKS OPS_PER_SEC / DIV_REGISTER_UPDATE_FREQUENCY
 
-//#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
 #define PRINT_INSTRUCTIONS
@@ -18,10 +18,10 @@
 
 #include <SDL.h>
 
-#include "memory.h"
 #include "controls.h"
 #include "cpu.h"
 #include "gpu.h"
+#include "memory.h"
 
 struct GameBoy
 {
@@ -48,7 +48,7 @@ struct GameBoy
   bool running = true;
 
 #ifdef ENABLE_DEBUG
-  bool debugging = false;
+  bool debugging = true;
 #endif
 
   unsigned long ticks = 0;
@@ -76,15 +76,24 @@ struct GameBoy
 
       if (ticks > last_print_ticks + 25000)
       {
-        std::cout << std::dec << "Ticks: " << ticks << std::endl;
+        // std::cout << std::dec << "Ticks: " << ticks << std::endl;
         last_print_ticks = ticks;
       }
 
       // CPU
-      if (!this->halted && !this->executeInstruction())
+      if (!this->halted)
       {
-        exit(1);
+        if (!this->executeInstruction())
+        {
+          exit(1);
+        }
       }
+      else
+      {
+        // Avoid the program from locking up
+        this->ticks += 4;
+      }
+
 #ifdef PRINT_CPU_REGISTRERS
       if (this->debugging)
       {
@@ -170,10 +179,11 @@ struct GameBoy
       }
       this->executeInterrupts();
     }
+    std::cout << "Finished executing" << std::endl;
+    std::cout << this->cpu;
   }
 
-  bool
-  executeInstruction();
+  bool executeInstruction();
   bool executeGPU()
   {
     return this->gpu.executeGPU();

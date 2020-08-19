@@ -28,8 +28,8 @@
 
 #include <SDL.h>
 
-#include "memory.h"
 #include "cpu.h"
+#include "memory.h"
 
 struct LCD_Control
 {
@@ -88,7 +88,7 @@ const Color palette[4] = {
     {0, 0, 0, 255},
 };
 
-enum GPU_mode
+enum class GPU_mode
 {
   H_BLANK = 0,
   V_BLANK = 1,
@@ -114,11 +114,11 @@ struct GPU
     this->window_x = this->memory->read_raw_byte(WINDOW_X_POSITION);
     this->window_y = this->memory->read_raw_byte(WINDOW_Y_POSITION);
 
-    this->memory->write_byte(LCDC_POSITION, 0x91);
-    this->memory->write_byte(BACKGROUND_PALETTE_POSITION, 0xFC);
-    this->memory->write_byte(SPRITE_0_PALETTE_POSITION, 0xFF);
-    this->memory->write_byte(SPRITE_1_PALETTE_POSITION, 0xFF);
-    this->memory->write_byte(SCANLINE_POSITION, 0x00);
+    *(this->memory->read_raw_byte(LCDC_POSITION)) = 0x91;
+    *(this->memory->read_raw_byte(BACKGROUND_PALETTE_POSITION)) = 0xFC;
+    *(this->memory->read_raw_byte(SPRITE_0_PALETTE_POSITION)) = 0xFF;
+    *(this->memory->read_raw_byte(SPRITE_1_PALETTE_POSITION)) = 0xFF;
+    *(this->memory->read_raw_byte(SCANLINE_POSITION)) = 0x00;
 
     this->framebuffer = SDL_CreateTexture(this->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
@@ -163,7 +163,7 @@ struct GPU
 
     switch (this->current_mode)
     {
-    case H_BLANK:
+    case GPU_mode::H_BLANK:
       if (this->gpu_ticks >= 204)
       {
         *(this->scanline) += 1;
@@ -184,7 +184,7 @@ struct GPU
         this->gpu_ticks -= 204;
       }
       break;
-    case V_BLANK:
+    case GPU_mode::V_BLANK:
       if (this->gpu_ticks >= 456)
       {
         *(this->scanline) += 1;
@@ -198,7 +198,7 @@ struct GPU
         this->gpu_ticks -= 456;
       }
       break;
-    case OAM:
+    case GPU_mode::OAM:
       if (this->gpu_ticks >= 80)
       {
         this->current_mode = GPU_mode::VRAM;
@@ -206,7 +206,7 @@ struct GPU
         this->gpu_ticks -= 80;
       }
       break;
-    case VRAM:
+    case GPU_mode::VRAM:
       if (this->gpu_ticks >= 172)
       {
         this->current_mode = GPU_mode::H_BLANK;
@@ -216,8 +216,8 @@ struct GPU
       break;
     }
 
-    *(this->stat) &= 0xF8;
-    *(this->stat) |= this->current_mode;
+    *(this->stat) &= 0b11111000;
+    *(this->stat) |= (int)this->current_mode;
     *(this->stat) |= (*(this->scanline) == *(this->ly_c)) << 2;
 
     return true;
@@ -384,7 +384,7 @@ struct GPU
 
           for (int8_t pixel = 7; pixel >= 0; pixel--)
           {
-            int8_t x_position = (sprite.x_pos - 8) + 7 - pixel;
+            int16_t x_position = (sprite.x_pos - 8) + 7 - pixel;
             if (x_position < 0 || x_position >= OUTPUT_WIDTH)
             {
               continue;
@@ -434,14 +434,14 @@ struct GPU
 
   void renderFramebuffer()
   {
-    std::cout << "Updated screen" << std::endl;
+    // std::cout << "Updated screen" << std::endl;
     SDL_UpdateTexture(this->framebuffer, NULL, this->pixels, OUTPUT_WIDTH * sizeof(Color));
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(this->renderer);
     if ((*(this->lcd_control)).lcd_control_operation) // Bit 7
     {
-      std::cout << "Updated framebuffer" << std::endl;
+      // std::cout << "Updated framebuffer" << std::endl;
       SDL_RenderCopy(this->renderer, this->framebuffer, NULL, NULL);
       SDL_RenderPresent(this->renderer);
     }
@@ -453,16 +453,16 @@ inline std::ostream &operator<<(std::ostream &o, const GPU &gpu)
   std::string mode;
   switch (gpu.current_mode)
   {
-  case H_BLANK:
+  case GPU_mode::H_BLANK:
     mode = "H_BLANK";
     break;
-  case V_BLANK:
+  case GPU_mode::V_BLANK:
     mode = "V_BLANK";
     break;
-  case OAM:
+  case GPU_mode::OAM:
     mode = "OAM";
     break;
-  case VRAM:
+  case GPU_mode::VRAM:
     mode = "VRAM";
     break;
   }

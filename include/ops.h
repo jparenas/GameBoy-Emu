@@ -1,28 +1,20 @@
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "memory.h"
-#include "gameboy.h"
-#include "ops_util.h"
 #include "extended_ops.h"
+#include "gameboy.h"
+#include "memory.h"
+#include "ops_util.h"
 
 struct Operands
 {
   Operands(size_t size)
   {
-    if (size != 0)
-    {
-      this->values = std::unique_ptr<uint8_t[]>(new uint8_t[size]);
-    }
-    else
-    {
-      this->values = std::unique_ptr<uint8_t[]>(NULL);
-    }
     this->size = size;
   }
-  std::unique_ptr<uint8_t[]> values;
+  uint8_t values[2];
   uint8_t size;
 };
 
@@ -358,6 +350,34 @@ void ld_l_hlp(GameBoy &gameboy, Operands &operands)
   gameboy.cpu.registrers.l = gameboy.memory.read_byte(gameboy.cpu.registrers.hl);
 }
 
+void ld_hl_sp_n(GameBoy &gameboy, Operands &operands)
+{
+  uint16_t result = (uint16_t)gameboy.cpu.registrers.sp + unsigned_8_to_signed(operands.values[0]);
+
+  if (result & 0xFF00)
+  {
+    gameboy.cpu.registrers.f.c = 1;
+  }
+  else
+  {
+    gameboy.cpu.registrers.f.c = 0;
+  }
+
+  if ((gameboy.cpu.registrers.sp & 0x0F) + ((unsigned_8_to_signed(operands.values[0])) & 0x0F) > 0x0F)
+  {
+    gameboy.cpu.registrers.f.h = 1;
+  }
+  else
+  {
+    gameboy.cpu.registrers.f.h = 0;
+  }
+
+  gameboy.cpu.registrers.hl = result;
+
+  gameboy.cpu.registrers.f.z = 0;
+  gameboy.cpu.registrers.f.n = 0;
+}
+
 void ld_hlp_a(GameBoy &gameboy, Operands &operands)
 {
   gameboy.memory.write_byte(gameboy.cpu.registrers.hl, gameboy.cpu.registrers.a);
@@ -396,6 +416,11 @@ void ld_hlp_l(GameBoy &gameboy, Operands &operands)
 void ld_hlp_n(GameBoy &gameboy, Operands &operands)
 {
   gameboy.memory.write_byte(gameboy.cpu.registrers.hl, operands.values[0]);
+}
+
+void ld_sp_hl(GameBoy &gameboy, Operands &operands)
+{
+  gameboy.cpu.registrers.sp = gameboy.cpu.registrers.hl;
 }
 
 void ld_a_ff00_c(GameBoy &gameboy, Operands &operands)
@@ -503,6 +528,26 @@ void call_c(GameBoy &gameboy, Operands &operands)
   }
 }
 
+void call_nz(GameBoy &gameboy, Operands &operands)
+{
+  if (gameboy.cpu.registrers.f.z == 0)
+  {
+    gameboy.ticks += 3;
+    write_short_to_stack(gameboy, gameboy.cpu.registrers.pc);
+    gameboy.cpu.registrers.pc = convert_uint8_to_uint16(operands.values[1], operands.values[0]);
+  }
+}
+
+void call_z(GameBoy &gameboy, Operands &operands)
+{
+  if (gameboy.cpu.registrers.f.z)
+  {
+    gameboy.ticks += 3;
+    write_short_to_stack(gameboy, gameboy.cpu.registrers.pc);
+    gameboy.cpu.registrers.pc = convert_uint8_to_uint16(operands.values[1], operands.values[0]);
+  }
+}
+
 void ret(GameBoy &gameboy, Operands &operands)
 {
   gameboy.cpu.registrers.pc = pop_short_from_stack(gameboy);
@@ -511,7 +556,7 @@ void ret(GameBoy &gameboy, Operands &operands)
 void reti(GameBoy &gameboy, Operands &operands)
 {
   gameboy.cpu.registrers.pc = pop_short_from_stack(gameboy);
-  gameboy.cpu.registrers.ime = 0x01;
+  gameboy.cpu.registrers.ime = 0x1;
 }
 
 void ret_nz(GameBoy &gameboy, Operands &operands)
@@ -867,7 +912,7 @@ void add_base(GameBoy &gameboy, uint8_t value)
     gameboy.cpu.registrers.f.h = 0;
   }
 
-  gameboy.cpu.registrers.a = (uint8_t)result;
+  gameboy.cpu.registrers.a = (uint8_t)(result & 0xFF);
 
   gameboy.cpu.registrers.f.n = 0;
 }
@@ -915,6 +960,34 @@ void add_a_hl(GameBoy &gameboy, Operands &operands)
 void add_a_n(GameBoy &gameboy, Operands &operands)
 {
   add_base(gameboy, operands.values[0]);
+}
+
+void add_sp_n(GameBoy &gameboy, Operands &operands)
+{
+  uint16_t result = (uint16_t)gameboy.cpu.registrers.sp + unsigned_8_to_signed(operands.values[0]);
+
+  if (result & 0xFF00)
+  {
+    gameboy.cpu.registrers.f.c = 1;
+  }
+  else
+  {
+    gameboy.cpu.registrers.f.c = 0;
+  }
+
+  if ((gameboy.cpu.registrers.sp & 0x0F) + ((unsigned_8_to_signed(operands.values[0])) & 0x0F) > 0x0F)
+  {
+    gameboy.cpu.registrers.f.h = 1;
+  }
+  else
+  {
+    gameboy.cpu.registrers.f.h = 0;
+  }
+
+  gameboy.cpu.registrers.sp = (uint8_t)result;
+
+  gameboy.cpu.registrers.f.z = 0;
+  gameboy.cpu.registrers.f.n = 0;
 }
 
 void add_16bit_base(GameBoy &gameboy, uint16_t &source, uint16_t value)
@@ -1146,7 +1219,7 @@ void sbc_n(GameBoy &gameboy, Operands &operands)
 
 void jr_n(GameBoy &gameboy, Operands &operands)
 {
-  gameboy.cpu.registrers.pc += (int8_t)operands.values[0];
+  gameboy.cpu.registrers.pc += unsigned_8_to_signed(operands.values[0]);
 }
 
 void jr_nz(GameBoy &gameboy, Operands &operands)
@@ -1154,7 +1227,7 @@ void jr_nz(GameBoy &gameboy, Operands &operands)
   if (gameboy.cpu.registrers.f.z == 0)
   {
     gameboy.ticks += 1;
-    gameboy.cpu.registrers.pc += (int8_t)operands.values[0];
+    gameboy.cpu.registrers.pc += unsigned_8_to_signed(operands.values[0]);
   }
 }
 
@@ -1163,7 +1236,7 @@ void jr_z(GameBoy &gameboy, Operands &operands)
   if (gameboy.cpu.registrers.f.z)
   {
     gameboy.ticks += 1;
-    gameboy.cpu.registrers.pc += (int8_t)operands.values[0];
+    gameboy.cpu.registrers.pc += unsigned_8_to_signed(operands.values[0]);
   }
 }
 
@@ -1172,7 +1245,7 @@ void jr_nc(GameBoy &gameboy, Operands &operands)
   if (gameboy.cpu.registrers.f.c == 0)
   {
     gameboy.ticks += 1;
-    gameboy.cpu.registrers.pc += (int8_t)operands.values[0];
+    gameboy.cpu.registrers.pc += unsigned_8_to_signed(operands.values[0]);
   }
 }
 
@@ -1181,7 +1254,7 @@ void jr_c(GameBoy &gameboy, Operands &operands)
   if (gameboy.cpu.registrers.f.c)
   {
     gameboy.ticks += 1;
-    gameboy.cpu.registrers.pc += (int8_t)operands.values[0];
+    gameboy.cpu.registrers.pc += unsigned_8_to_signed(operands.values[0]);
   }
 }
 
@@ -1545,7 +1618,14 @@ void stop(GameBoy &gameboy, Operands &operands)
 
 void halt(GameBoy &gameboy, Operands &operands)
 {
-  gameboy.halted = true;
+  if (gameboy.cpu.registrers.ime)
+  {
+    gameboy.halted = true;
+  }
+  else
+  {
+    gameboy.cpu.registrers.pc += 1;
+  }
 }
 
 const Instruction instruction_set[256] = {
@@ -1676,7 +1756,7 @@ const Instruction instruction_set[256] = {
     {"LD A, H", 0, 1, ld_a_h},                  // 0x7c
     {"LD A, L", 0, 1, ld_a_l},                  // 0x7d
     {"LD A, (HL)", 0, 2, ld_a_hlp},             // 0x7e
-    {"LD A, A", 0, 0, nop},                     // 0x7f
+    {"LD A, A", 0, 1, nop},                     // 0x7f
     {"ADD A, B", 0, 1, add_a_b},                // 0x80
     {"ADD A, C", 0, 1, add_a_c},                // 0x81
     {"ADD A, D", 0, 1, add_a_d},                // 0x82
@@ -1745,7 +1825,7 @@ const Instruction instruction_set[256] = {
     {"POP BC", 0, 3, pop_bc},                   // 0xc1
     {"JP NZ, 0x%04X", 2, 3, jp_nz},             // 0xc2
     {"JP 0x%04X", 2, 4, jp_nn},                 // 0xc3
-    {"CALL NZ, 0x%04X", 2, 3, NULL},            // 0xc4
+    {"CALL NZ, 0x%04X", 2, 3, call_nz},         // 0xc4
     {"PUSH BC", 0, 4, push_bc},                 // 0xc5
     {"ADD A, 0x%02X", 1, 2, add_a_n},           // 0xc6
     {"RST 0x00", 0, 8, rst_0x00},               // 0xc7
@@ -1753,7 +1833,7 @@ const Instruction instruction_set[256] = {
     {"RET", 0, 4, ret},                         // 0xc9
     {"JP Z, 0x%04X", 2, 3, jp_z},               // 0xca
     {"CB %02X", 1, 0, cb},                      // 0xcb
-    {"CALL Z, 0x%04X", 2, 3, NULL},             // 0xcc
+    {"CALL Z, 0x%04X", 2, 3, call_z},           // 0xcc
     {"CALL 0x%04X", 2, 3, call},                // 0xcd
     {"ADC 0x%02X", 1, 2, adc_n},                // 0xce
     {"RST 0x08", 0, 8, rst_0x08},               // 0xcf
@@ -1781,7 +1861,7 @@ const Instruction instruction_set[256] = {
     {"PUSH HL", 0, 4, push_hl},                 // 0xe5
     {"AND 0x%02X", 1, 2, and_n},                // 0xe6
     {"RST 0x20", 0, 8, rst_0x20},               // 0xe7
-    {"ADD SP,0x%02X", 1, 0, NULL},              // 0xe8
+    {"ADD SP,0x%02X", 1, 4, add_sp_n},          // 0xe8
     {"JP HL", 0, 1, jp_hl},                     // 0xe9
     {"LD (0x%04X), A", 2, 4, ld_nnp_a},         // 0xea
     {"UNKNOWN", 0, 0, NULL},                    // 0xeb
@@ -1797,8 +1877,8 @@ const Instruction instruction_set[256] = {
     {"PUSH AF", 0, 4, push_af},                 // 0xf5
     {"OR 0x%02X", 1, 2, or_n},                  // 0xf6
     {"RST 0x30", 0, 8, rst_0x30},               // 0xf7
-    {"LD HL, SP+0x%02X", 1, 0, NULL},           // 0xf8
-    {"LD SP, HL", 0, 0, NULL},                  // 0xf9
+    {"LD HL, SP+0x%02X", 1, 3, ld_hl_sp_n},     // 0xf8
+    {"LD SP, HL", 0, 2, ld_sp_hl},              // 0xf9
     {"LD A, (0x%04X)", 2, 4, ld_a_nn},          // 0xfa
     {"EI", 0, 1, ei},                           // 0xfb
     {"UNKNOWN", 0, 0, NULL},                    // 0xfc

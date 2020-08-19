@@ -65,7 +65,7 @@ bool GameBoy::executeInterrupts()
       this->halted = false;
       if (enabled_flags & INTERRUPT_VBLANK)
       {
-        std::cout << "Calling VBLANK interrupt " << std::endl;
+        // std::cout << "Calling VBLANK interrupt " << std::endl;
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_VBLANK;
         this->gpu.renderFramebuffer();
         this->cpu.registrers.ime = 0x0;

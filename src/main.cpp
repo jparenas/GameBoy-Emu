@@ -9,14 +9,14 @@
 
 #include <SDL_opengl.h>
 
-#include <string>
 #include <iostream>
+#include <string>
 
 #include <bitset>
 
 #include "gameboy.h"
 
-int main()
+int main(int argc, char *argv[])
 {
   /*
   CPU cpu;
@@ -59,7 +59,17 @@ int main()
 
   SDL_RenderSetScale(renderer, 2, 2);
 
-  GameBoy gameboy("Tetris.gb", renderer);
+  std::string rom;
+  if (argc > 1)
+  {
+    rom = argv[1];
+  }
+  else
+  {
+    rom = "Tetris.gb";
+  }
+
+  GameBoy gameboy(rom, renderer);
 
   gameboy.run();
 

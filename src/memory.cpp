@@ -1,6 +1,6 @@
+#include <cmath>
 #include <fstream>
 #include <iostream>
-#include <cmath>
 
 #include "memory.h"
 
@@ -80,6 +80,30 @@ void Memory::read_ROM(std::string filename)
     ram_size = 0x2000;
     break;
   }
+
+  std::cout << "MBC Type: ";
+  switch (this->rom[MBC_TYPE_OFFSET])
+  {
+  case 1:
+  case 2:
+  case 3:
+    std::cout << "MBC 1";
+    this->mbc_type = MBC::MBC_1;
+    this->enable_ram_write = false;
+    break;
+  case 5:
+  case 6:
+    std::cout << "MBC 2";
+    this->mbc_type = MBC::MBC_2;
+    this->enable_ram_write = false;
+    break;
+  default:
+    std::cout << "None";
+    this->mbc_type = MBC::NONE;
+    this->enable_ram_write = true;
+    break;
+  }
+  std::cout << std::endl;
 
   this->switchable_ram = std::unique_ptr<uint8_t[]>(new uint8_t[ram_size]);
 
@@ -163,17 +187,83 @@ uint16_t Memory::read_short(uint16_t address)
 void Memory::write_byte(uint16_t address, uint8_t value)
 {
   //std::cout << "Written byte at 0x" << std::hex << address << ": 0x" << (int)value << std::endl;
-  if (address <= VRAM_END && address >= VRAM_BEGIN)
+  if (address < VRAM_BEGIN)
+  {
+    // Banking Handling
+    if (address < 0x2000)
+    {
+      if (this->mbc_type == MBC::MBC_1 || (this->mbc_type == MBC::MBC_2 && (address >> 4 & 0x01) == 0))
+      {
+        if (value & 0x0F == 0x0A)
+        {
+          this->enable_ram_write = true;
+        }
+        else if (value & 0x0F == 0x00)
+        {
+          this->enable_ram_write = false;
+        }
+      }
+    }
+    else if (address >= 0x2000 && address < 0x4000)
+    {
+      if (this->mbc_type == MBC::MBC_1)
+      {
+        this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+        if (this->current_rom_bank == 0)
+        {
+          this->current_rom_bank = 1;
+        }
+      }
+      else if (this->mbc_type == MBC::MBC_2)
+      {
+        this->current_rom_bank = value & 0x0F;
+        if (this->current_rom_bank == 0)
+        {
+          this->current_rom_bank = 1;
+        }
+      }
+    }
+    else if (address >= 0x4000 && address < 0x6000)
+    {
+      if (this->mbc_type == MBC::MBC_1)
+      {
+        if (this->set_rom_banking)
+        {
+          this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+          if (this->current_rom_bank == 0)
+          {
+            this->current_rom_bank = 1;
+          }
+        }
+        else
+        {
+          this->current_ram_bank = value & 0x03;
+        }
+      }
+    }
+    else if (address >= 0x6000 && address < 0x8000)
+    {
+      if (this->mbc_type == MBC::MBC_1)
+      {
+        this->set_rom_banking = value & 0x01 == 0;
+        this->current_ram_bank = 0;
+      }
+    }
+  }
+  else if (address <= VRAM_END && address >= VRAM_BEGIN)
   {
     this->vram[address - VRAM_BEGIN] = value;
   }
   else if (address <= SWITCHABLE_RAM_END && address >= SWITCHABLE_RAM_BEGIN)
   {
-    this->switchable_ram[address - SWITCHABLE_RAM_BEGIN + this->current_ram_bank * RAM_BANK_SIZE] = value;
+    if (this->enable_ram_write)
+    {
+      this->switchable_ram[address - SWITCHABLE_RAM_BEGIN + this->current_ram_bank * RAM_BANK_SIZE] = value;
+    }
   }
   else if (address <= INTERNAL_RAM_END && address >= INTERNAL_RAM_BEGIN)
   {
-    std::cout << "Written byte at 0x" << std::hex << address << ": byte 0x" << (int)value << std::endl;
+    //std::cout << "Written byte at 0x" << std::hex << address << ": byte 0x" << (int)value << std::endl;
     this->ram[address - INTERNAL_RAM_BEGIN] = value;
   }
   else if (address <= ECHO_RAM_END && address >= ECHO_RAM_BEGIN)
@@ -183,19 +273,22 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   else if (address <= OAM_END && address >= OAM_BEGIN)
   {
     std::cout << "Written to OAM: 0x" << std::hex << address << std::endl;
-    //this->oam[address - OAM_BEGIN] = value;
+    if (this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b10 && this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b11)
+    {
+      this->oam[address - OAM_BEGIN] = value;
+    }
   }
   else if (address == 0xFF46)
   {
     this->io[address - IO_BEGIN] = value;
     uint16_t start_address = ((uint16_t)value) << 8;
-    std::cout << "DMA request, address 0x" << std::hex << start_address << std::endl;
+    //std::cout << "DMA request, address 0x" << std::hex << start_address << std::endl;
     for (uint16_t i = 0; i < 160; i++)
     {
       this->oam[i] = this->read_byte(start_address + i);
-      std::cout << (int)this->oam[i];
+      //std::cout << (int)this->oam[i];
     }
-    std::cout << std::endl;
+    //std::cout << std::endl;
   }
   else if (address <= IO_END && address >= IO_BEGIN)
   {
@@ -203,6 +296,13 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     {
       this->io[address - IO_BEGIN] = value | 0xCF;
       return;
+    }
+    else if (address == 0xFF02)
+    {
+      if (value == 0x81)
+      {
+        std::cout << this->io[0xFF01 - IO_BEGIN];
+      }
     }
     else if (address == 0xFF04)
     {

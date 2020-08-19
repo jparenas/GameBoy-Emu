@@ -2,8 +2,13 @@
 
 #include <cstring>
 
-#include "gpu.h"
 #include "gameboy.h"
+#include "gpu.h"
+
+int8_t unsigned_8_to_signed(uint8_t x)
+{
+  return x < 128 ? x : x - 256;
+}
 
 uint16_t convert_uint8_to_uint16(uint8_t a, uint8_t b)
 {

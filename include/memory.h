@@ -1,6 +1,7 @@
 #pragma once
 
 #define ROM_OFFSET_TITLE 0x134
+#define MBC_TYPE_OFFSET 0x147
 #define ROM_OFFSET_ROM_SIZE 0x148
 #define ROM_OFFSET_RAM_SIZE 0x149
 
@@ -28,10 +29,17 @@
 
 #define JOYPAD_LOCATION 0xFF00
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "controls.h"
+
+enum class MBC
+{
+  NONE,
+  MBC_1,
+  MBC_2
+};
 
 class Memory
 {
@@ -44,6 +52,9 @@ private:
   uint8_t io[IO_END - IO_BEGIN + 1];
   uint8_t stack_ram[STACK_INTERNAL_RAM_END - STACK_INTERNAL_RAM_BEGIN + 1];
 
+  MBC mbc_type;
+  bool enable_ram_write;
+  bool set_rom_banking = false;
   uint8_t number_rom_banks;
   uint8_t number_ram_banks;
   uint8_t current_rom_bank;

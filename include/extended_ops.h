@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include "memory.h"
 #include "gameboy.h"
+#include "memory.h"
 
 struct ExtendedInstruction
 {
@@ -14,7 +14,7 @@ struct ExtendedInstruction
 
 void rlc(GameBoy &gameboy, uint8_t &value)
 {
-  gameboy.cpu.registrers.f.c = value & 0x80 >> 7;
+  gameboy.cpu.registrers.f.c = value & 0b10000000 >> 7;
   value = value << 1;
   value |= gameboy.cpu.registrers.f.c;
   if (value == 0)
@@ -32,7 +32,7 @@ void rlc(GameBoy &gameboy, uint8_t &value)
 void rl(GameBoy &gameboy, uint8_t &value)
 {
   uint8_t old_carry_bit = gameboy.cpu.registrers.f.c;
-  gameboy.cpu.registrers.f.c = value & 0x80 >> 7;
+  gameboy.cpu.registrers.f.c = value & 0b10000000 >> 7;
   value = value << 1;
   value = value | old_carry_bit;
 
@@ -100,6 +100,48 @@ void sla(GameBoy &gameboy, uint8_t &value)
   gameboy.cpu.registrers.f.h = 0;
 }
 
+void rr_a(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.a);
+}
+
+void rr_b(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.b);
+}
+
+void rr_c(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.c);
+}
+
+void rr_d(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.d);
+}
+
+void rr_e(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.e);
+}
+
+void rr_h(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.h);
+}
+
+void rr_l(GameBoy &gameboy)
+{
+  rr(gameboy, gameboy.cpu.registrers.l);
+}
+
+void rr_hlp(GameBoy &gameboy)
+{
+  uint8_t value = gameboy.memory.read_byte(gameboy.cpu.registrers.hl);
+  rr(gameboy, value);
+  gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
+}
+
 void sla_a(GameBoy &gameboy)
 {
   sla(gameboy, gameboy.cpu.registrers.a);
@@ -144,7 +186,7 @@ void sla_hlp(GameBoy &gameboy)
 
 void sra(GameBoy &gameboy, uint8_t &value)
 {
-  uint8_t old_7_bit_data = value & 0x80;
+  uint8_t old_7_bit_data = value & 0b10000000;
   gameboy.cpu.registrers.f.c = value & 0x01;
   value = value >> 1;
   value |= old_7_bit_data;
@@ -1353,14 +1395,14 @@ const struct ExtendedInstruction extended_instruction_set[256] = {
     {"RL L", 8, NULL},                // 0x15
     {"RL (HL)", 16, NULL},            // 0x16
     {"RL A", 8, NULL},                // 0x17
-    {"RR B", 8, NULL},                // 0x18
-    {"RR C", 8, NULL},                // 0x19
-    {"RR D", 8, NULL},                // 0x1a
-    {"RR E", 8, NULL},                // 0x1b
-    {"RR H", 8, NULL},                // 0x1c
-    {"RR L", 8, NULL},                // 0x1d
-    {"RR (HL)", 16, NULL},            // 0x1e
-    {"RR A", 8, NULL},                // 0x1f
+    {"RR B", 8, rr_b},                // 0x18
+    {"RR C", 8, rr_c},                // 0x19
+    {"RR D", 8, rr_d},                // 0x1a
+    {"RR E", 8, rr_e},                // 0x1b
+    {"RR H", 8, rr_h},                // 0x1c
+    {"RR L", 8, rr_l},                // 0x1d
+    {"RR (HL)", 16, rr_hlp},          // 0x1e
+    {"RR A", 8, rr_a},                // 0x1f
     {"SLA B", 8, sla_b},              // 0x20
     {"SLA C", 8, sla_c},              // 0x21
     {"SLA D", 8, sla_d},              // 0x22

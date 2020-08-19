@@ -18,8 +18,8 @@
 #include <bitset>
 #include <cstdint>
 
-#include "memory.h"
 #include "controls.h"
+#include "memory.h"
 
 struct Flags
 {
@@ -96,7 +96,7 @@ struct CPU
 {
   CPU(Memory *memory, unsigned long *ticks)
   {
-    this->registrers.a = 0x0;
+    this->registrers.a = 0x01;
     this->registrers._f = 0xB0;
     this->registrers.bc = 0x0013;
     this->registrers.de = 0x00D8;
