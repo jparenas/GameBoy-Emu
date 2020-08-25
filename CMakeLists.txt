@@ -1,4 +1,4 @@
-project (GameBoy)
+project(GameBoy)
 
 cmake_minimum_required(VERSION 3.15.3)
 
@@ -13,7 +13,9 @@ include_directories(include
   ${GLUT_INCLUDE_DIRS}
   ${GLEW_INCLUDE_DIRS})
 
+add_subdirectory(CLI11)
+
 file(GLOB SOURCES "src/*.cpp")
 add_executable(GameBoy ${SOURCES})
 target_compile_options(GameBoy PRIVATE -std=c++2a)
-target_link_libraries(GameBoy ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${GLEW_LIBRARIES})
+target_link_libraries(GameBoy ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${GLEW_LIBRARIES} CLI11::CLI11)

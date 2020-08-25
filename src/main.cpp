@@ -14,20 +14,21 @@
 
 #include <bitset>
 
+#include "CLI/CLI.hpp"
+
 #include "gameboy.h"
 
 int main(int argc, char *argv[])
 {
-  /*
-  CPU cpu;
-  std::cout << std::bitset<8>(cpu.registrers._f) << std::endl;
-  std::cout << cpu.ticks << std::endl;
-  cpu.executeInstruction();
-  std::cout << cpu.ticks << std::endl;
+  CLI::App app;
 
-  std::string title;
-  readROM("Tetris.gb", title, cpu.memory, MEMORY_SIZE);
-  */
+  std::string rom = "Tetris.gb";
+  app.add_option("-r,--rom,rom", rom, "ROM to load");
+
+  bool debug = false;
+  app.add_option("-d,--debug", debug, "Enable debug window");
+
+  CLI11_PARSE(app, argc, argv);
 
   //The window we'll be rendering to
   SDL_Window *window = NULL;
@@ -58,16 +59,6 @@ int main(int argc, char *argv[])
   }
 
   SDL_RenderSetScale(renderer, 2, 2);
-
-  std::string rom;
-  if (argc > 1)
-  {
-    rom = argv[1];
-  }
-  else
-  {
-    rom = "Tetris.gb";
-  }
 
   GameBoy gameboy(rom, renderer);
 

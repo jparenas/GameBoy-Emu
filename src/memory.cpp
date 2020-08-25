@@ -272,7 +272,6 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   }
   else if (address <= OAM_END && address >= OAM_BEGIN)
   {
-    std::cout << "Written to OAM: 0x" << std::hex << address << std::endl;
     if (this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b10 && this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b11)
     {
       this->oam[address - OAM_BEGIN] = value;

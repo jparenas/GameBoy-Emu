@@ -133,6 +133,11 @@ struct GPU
     this->renderFramebuffer();
   }
 
+  ~GPU()
+  {
+    SDL_DestroyTexture(this->framebuffer);
+  }
+
   unsigned long *ticks;
 
   uint32_t gpu_ticks = 116;
