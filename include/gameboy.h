@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "imgui.h"
+
 #include <SDL.h>
 
 #include "controls.h"
@@ -34,6 +36,8 @@ struct GameBoy
     this->div_register = this->memory.read_raw_byte(DIV_REGISTER_LOCATION);
 
     this->rom_title = this->memory.get_rom_title();
+    this->gameboy_title = "Gameboy - ";
+    this->gameboy_title.append(this->rom_title);
   }
 
   ~GameBoy()
@@ -50,9 +54,12 @@ struct GameBoy
   Keys keys;
 
   std::string rom_title;
+  std::string gameboy_title;
 
   bool halted = false;
   bool running = true;
+
+  bool is_window_open = true;
 
 #ifdef ENABLE_DEBUG
   bool debugging = true;
@@ -170,4 +177,12 @@ struct GameBoy
     return this->gpu.executeGPU();
   }
   bool executeInterrupts();
+
+  void render()
+  {
+    ImGui::Begin(this->gameboy_title.c_str(), &this->is_window_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
+    //ImGui::SetWindowSize(ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
+    ImGui::Image((void *)(intptr_t)this->gpu.frame_texture, ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
+    ImGui::End();
+  }
 };

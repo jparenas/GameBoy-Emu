@@ -129,14 +129,7 @@ int main(int argc, char *argv[])
       gameboy.runTick();
     }
 
-    std::string title = "Gameboy - ";
-    title.append(gameboy.rom_title);
-
-    bool is_window_open = true;
-    ImGui::Begin(title.c_str(), &is_window_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
-    //ImGui::SetWindowSize(ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
-    ImGui::Image((void *)(intptr_t)gameboy.gpu.frame_texture, ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
-    ImGui::End();
+    gameboy.render();
 
     ImGui::Render();
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);

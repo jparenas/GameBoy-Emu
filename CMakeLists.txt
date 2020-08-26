@@ -4,7 +4,7 @@ project(GameBoy VERSION 0.0.1)
 
 set(CMAKE_BUILD_TYPE Debug)
 
-set(IMGUI_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/imgui ${CMAKE_SOURCE_DIR}/imgui/examples)
+set(IMGUI_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/imgui ${CMAKE_SOURCE_DIR}/imgui/examples ${CMAKE_SOURCE_DIR}/imgui_club)
 
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
