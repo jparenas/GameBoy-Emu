@@ -73,4 +73,8 @@ public:
   uint16_t read_short(uint16_t address);
   void write_byte(uint16_t address, uint8_t value);
   void write_short(uint16_t address, uint16_t value);
+  std::string get_rom_title()
+  {
+    return this->rom_title;
+  }
 };
