@@ -3,11 +3,11 @@
 #define IE_POSITION 0xFFFF
 #define IF_POSITION 0xFF0F
 
-#define INTERRUPT_VBLANK 1 << 0
-#define INTERRUPT_STAT 1 << 1
-#define INTERRUPT_TIMER 1 << 2
-#define INTERRUPT_SERIAL 1 << 3
-#define INTERRUPT_JOYPAD 1 << 4
+#define INTERRUPT_VBLANK (1 << 0)
+#define INTERRUPT_STAT (1 << 1)
+#define INTERRUPT_TIMER (1 << 2)
+#define INTERRUPT_SERIAL (1 << 3)
+#define INTERRUPT_JOYPAD (1 << 4)
 
 #define INTERRUPT_VBLANK_INSTRUCTION 0x40
 #define INTERRUPT_STAT_INSTRUCTION 0x48
@@ -106,13 +106,13 @@ struct Instruction
 
 struct CPU
 {
-  CPU(Memory *memory, unsigned long *ticks)
+  CPU(Memory *memory, unsigned long *ticks) : memory(memory), ticks(ticks)
   {
     this->registrers.a = 0x01;
     this->registrers.f.z = 1;
     this->registrers.f.h = 1;
     this->registrers.f.c = 1;
-    this->registrers.f.n = 1;
+    this->registrers.f.n = 0;
     this->registrers.bc = 0x0013;
     this->registrers.de = 0x00D8;
     this->registrers.hl = 0x014D;
@@ -121,14 +121,8 @@ struct CPU
 
     this->registrers.ime = 0x0;
 
-    this->memory = memory;
-
     this->interrupt_enable = this->memory->read_raw_byte(IE_POSITION);
     this->interrupt_flags = this->memory->read_raw_byte(IF_POSITION);
-
-    this->memory->write_byte(JOYPAD_LOCATION, 0xFF);
-
-    this->ticks = ticks;
   };
 
   Registrers registrers;

@@ -306,11 +306,21 @@ void Memory::write_byte(uint16_t address, uint8_t value)
         std::cout << this->io[0xFF01 - IO_BEGIN];
       }
     }
-    else if (address == 0xFF04)
+    else if (address == DIV_REGISTER_POSITION)
     {
       this->io[address - IO_BEGIN] = 0;
     }
-    else if (address == 0xFF44)
+    else if (address == TAC_REGISTER_POSITION)
+    {
+      uint8_t previous_timer_frequency = this->read_byte(TAC_REGISTER_POSITION) & 0b00000011;
+      uint8_t new_timer_frequency = value & 0b00000011;
+      if (previous_timer_frequency != new_timer_frequency)
+      {
+        this->gameboy->timer_counter = timer_ticks[new_timer_frequency];
+      }
+      this->io[address - IO_BEGIN] = value;
+    }
+    else if (address == SCANLINE_POSITION)
     {
       this->io[address - IO_BEGIN] = 0;
     }

@@ -867,7 +867,7 @@ void dec_sp(GameBoy &gameboy, Operands &operands)
 
 void add_base(GameBoy &gameboy, uint8_t value)
 {
-  uint16_t result = (uint16_t)gameboy.cpu.registrers.a + value;
+  uint16_t result = (uint16_t)((uint16_t)gameboy.cpu.registrers.a + value);
 
   if (result & 0xFF == 0x0)
   {
@@ -887,7 +887,7 @@ void add_base(GameBoy &gameboy, uint8_t value)
     gameboy.cpu.registrers.f.c = 0;
   }
 
-  if ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) > 0x0F)
+  if ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) & 0xF0)
   {
     gameboy.cpu.registrers.f.h = 1;
   }

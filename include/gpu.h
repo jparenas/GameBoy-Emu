@@ -92,12 +92,8 @@ enum class GPU_mode
 
 struct GPU
 {
-  GPU(Memory *memory, unsigned long *ticks, CPU *cpu)
+  GPU(Memory *memory, unsigned long *ticks, CPU *cpu) : memory(memory), ticks(ticks), cpu(cpu)
   {
-    this->memory = memory;
-    this->ticks = ticks;
-    this->cpu = cpu;
-
     this->lcd_control = (LCD_Control *)this->memory->read_raw_byte(LCDC_POSITION);
     this->ly_c = this->memory->read_raw_byte(LY_C_POSITION);
     this->scroll_x = this->memory->read_raw_byte(SCROLL_X_POSITION);
@@ -133,12 +129,12 @@ struct GPU
 
   ~GPU()
   {
-    // SDL_DestroyTexture(this->framebuffer);
+    glDeleteTextures(1, &this->frame_texture);
   }
 
   unsigned long *ticks;
 
-  uint32_t gpu_ticks = 116;
+  uint32_t gpu_ticks = 29;
   unsigned long previous_ticks = 0;
 
   LCD_Control *lcd_control;
@@ -159,10 +155,9 @@ struct GPU
   GLuint frame_texture;
   Color pixels[OUTPUT_WIDTH * OUTPUT_HEIGHT];
 
-  bool executeGPU()
+  bool executeGPU(unsigned long ticks_elapsed)
   {
-    this->gpu_ticks += *(this->ticks) - previous_ticks;
-    previous_ticks = *(this->ticks);
+    this->gpu_ticks += ticks_elapsed;
 
     switch (this->current_mode)
     {

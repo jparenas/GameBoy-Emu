@@ -2,7 +2,6 @@
 
 #define OPS_PER_SEC 1050000
 
-#define DIV_REGISTER_LOCATION 0xFF04
 #define DIV_REGISTER_UPDATE_FREQUENCY 16384
 #define DIV_REGISTER_UPDATE_TICKS (OPS_PER_SEC / DIV_REGISTER_UPDATE_FREQUENCY)
 
@@ -28,15 +27,25 @@
 
 extern Memory *current_memory_to_use;
 
+const int timer_ticks[] = {
+    OPS_PER_SEC / 4096 /*Hz*/,
+    OPS_PER_SEC / 262144 /*Hz*/,
+    OPS_PER_SEC / 65536 /*Hz*/,
+    OPS_PER_SEC / 16384 /*Hz*/
+};
+
 struct GameBoy
 {
-  GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&this->memory, &this->ticks), gpu(&this->memory, &this->ticks, &this->cpu), last_operands(0)
+  GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&(this->memory), &(this->ticks)), gpu(&(this->memory), &(this->ticks), &(this->cpu)), last_operands(0)
   {
     this->keys.p14.pad_bool = 0x00;
     this->keys.p15.pad_bool = 0X00;
 
-    this->memory.write_byte(DIV_REGISTER_LOCATION, 0x00);
-    this->div_register = this->memory.read_raw_byte(DIV_REGISTER_LOCATION);
+    this->memory.write_byte(DIV_REGISTER_POSITION, 0xCF);
+    this->memory.write_byte(JOYPAD_LOCATION, 0xFF);
+    this->div_register = this->memory.read_raw_byte(DIV_REGISTER_POSITION);
+    this->tima_register = this->memory.read_raw_byte(TIMA_REGISTER_POSITION);
+    this->timer_counter = timer_ticks[0];
 
     this->rom_title = this->memory.get_rom_title();
     this->gameboy_title = "Gameboy - ";
@@ -58,6 +67,9 @@ struct GameBoy
   MemoryEditor memory_editor;
 
   uint8_t *div_register;
+  uint8_t *tima_register;
+
+  int16_t timer_counter;
 
   Keys keys;
 
@@ -80,9 +92,32 @@ struct GameBoy
 
   void runTick()
   {
+    unsigned long ticks_elapsed = this->ticks - this->last_ticks;
     if (this->ticks / DIV_REGISTER_UPDATE_TICKS != this->last_ticks / DIV_REGISTER_UPDATE_TICKS)
     {
       (*(this->div_register))++;
+    }
+    if ((this->memory.read_byte(TAC_REGISTER_POSITION) & 0b00000100) >> 2) // Timers enabled
+    {
+      this->timer_counter -= ticks_elapsed;
+      if (this->timer_counter <= 0)
+      {
+        // Reset Timer Counter
+        this->timer_counter = timer_ticks[(this->memory.read_byte(TAC_REGISTER_POSITION) & 0b00000011)] + this->timer_counter;
+        if (*(this->tima_register) == 255)
+        {
+          // Set TIMER interrupt
+          if (this->cpu.registrers.ime && *(this->cpu.interrupt_enable) & INTERRUPT_TIMER)
+          {
+            *(this->cpu.interrupt_flags) |= INTERRUPT_TIMER;
+          }
+          *(this->tima_register) = this->memory.read_byte(TMA_REGISTER_POSITION);
+        }
+        else
+        {
+          *(this->tima_register)++;
+        }
+      }
     }
     this->last_ticks = this->ticks;
 
@@ -108,7 +143,7 @@ struct GameBoy
 #endif
 
     // GPU
-    this->executeGPU();
+    this->executeGPU(ticks_elapsed);
 #ifdef PRINT_GPU_REGISTRERS
     std::cout << this->gpu;
 #endif
@@ -177,9 +212,9 @@ struct GameBoy
   }
 
   bool executeInstruction();
-  bool executeGPU()
+  bool executeGPU(unsigned long ticks_elapsed)
   {
-    return this->gpu.executeGPU();
+    return this->gpu.executeGPU(ticks_elapsed);
   }
   bool executeInterrupts();
 
@@ -220,6 +255,26 @@ struct GameBoy
           ImGui::Text("Last Executed OP: %s 0x%02X 0x%02X", this->last_instruction->name.c_str(), this->last_operands.values[0], this->last_operands.values[1]);
         }
       }
+      ImGui::Text("Divider: %d", *(this->div_register));
+      ImGui::Text("Timer: %d", *(this->tima_register));
+      std::string mode;
+      switch (this->gpu.current_mode)
+      {
+      case GPU_mode::H_BLANK:
+        mode = "H_BLANK";
+        break;
+      case GPU_mode::V_BLANK:
+        mode = "V_BLANK";
+        break;
+      case GPU_mode::OAM:
+        mode = "OAM";
+        break;
+      case GPU_mode::VRAM:
+        mode = "VRAM";
+        break;
+      }
+      ImGui::Text("Mode: %s", mode.c_str());
+      ImGui::Text("Scan line: %d", *(this->gpu.scanline));
       ImGui::Checkbox("Debugging", &(this->debugging));
       if (this->debugging)
       {
