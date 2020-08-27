@@ -9,6 +9,8 @@
 
 #define OAM_LOCATION 0xFE00
 
+#define GL_SILENCE_DEPRECATION
+
 #include <algorithm>
 #include <iterator>
 #include <set>

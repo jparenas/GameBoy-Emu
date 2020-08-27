@@ -27,8 +27,6 @@ include_directories(include
   ${GLEW_INCLUDE_DIRS}
   ${IMGUI_INCLUDE_DIR})
 
-message(STATUS "GLEW Directory" ${GLEW_LIBRARIES})
-
 add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLEW)
 add_library(imgui STATIC ${IMGUI_SOURCES} ${GLEW_INCLUDE_DIRS})
 target_link_libraries(imgui GLEW::GLEW ${OPENGL_LIBRARIES})

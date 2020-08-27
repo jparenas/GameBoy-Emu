@@ -109,6 +109,3 @@ public:
     return this->rom_loaded;
   }
 };
-
-ImU8 read_memory_data(const ImU8 *data, size_t offset);
-void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write);

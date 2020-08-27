@@ -5,11 +5,8 @@
 #include "gameboy.h"
 #include "memory.h"
 
-Memory::Memory(GameBoy *gameboy, std::string filename, Keys *keys)
+Memory::Memory(GameBoy *gameboy, std::string filename, Keys *keys) : gameboy(gameboy), keys(keys)
 {
-  this->keys = keys;
-  this->gameboy = gameboy;
-
   this->read_ROM(filename);
 }
 
@@ -197,11 +194,11 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     {
       if (this->mbc_type == MBC::MBC_1 || (this->mbc_type == MBC::MBC_2 && (address >> 4 & 0x01) == 0))
       {
-        if (value & 0x0F == 0x0A)
+        if ((value & 0x0F) == 0x0A)
         {
           this->enable_ram_write = true;
         }
-        else if (value & 0x0F == 0x00)
+        else if ((value & 0x0F) == 0x00)
         {
           this->enable_ram_write = false;
         }
@@ -248,7 +245,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     {
       if (this->mbc_type == MBC::MBC_1)
       {
-        this->set_rom_banking = value & 0x01 == 0;
+        this->set_rom_banking = (value & 0x01) == 0;
         this->current_ram_bank = 0;
       }
     }
@@ -275,7 +272,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   }
   else if (address <= OAM_END && address >= OAM_BEGIN)
   {
-    if (this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b10 && this->read_byte(0xFF41) /*STAT*/ & 0b00000011 != 0b11)
+    if ((this->read_byte(0xFF41) /*STAT*/ & 0b00000011) != 0b10 && (this->read_byte(0xFF41) /*STAT*/ & 0b00000011) != 0b11)
     {
       this->oam[address - OAM_BEGIN] = value;
     }
@@ -343,16 +340,4 @@ void Memory::write_short(uint16_t address, uint16_t value)
 {
   this->write_byte(address, (uint8_t)(value & 0x00FF));
   this->write_byte(address + 1, (uint8_t)((value & 0xFF00) >> 8));
-}
-
-Memory *current_memory_to_use = NULL;
-
-ImU8 read_memory_data(const ImU8 *data, size_t offset)
-{
-  return current_memory_to_use->read_byte(offset);
-}
-
-void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write)
-{
-  *(current_memory_to_use->read_raw_byte(offset)) = data_to_write;
 }

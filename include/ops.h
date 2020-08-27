@@ -3,9 +3,9 @@
 #include <memory>
 #include <string>
 
+#include "cpu.h"
 #include "extended_ops.h"
 #include "gameboy.h"
-#include "cpu.h"
 #include "memory.h"
 #include "ops_util.h"
 
@@ -791,7 +791,7 @@ void dec_base(GameBoy &gameboy, uint8_t &value)
     gameboy.cpu.registrers.f.z = 0;
   }
 
-  if (value & 0x0f == 0x0f)
+  if ((value & 0x0f) == 0x0f)
   {
     gameboy.cpu.registrers.f.h = 1;
   }
@@ -869,7 +869,7 @@ void add_base(GameBoy &gameboy, uint8_t value)
 {
   uint16_t result = (uint16_t)((uint16_t)gameboy.cpu.registrers.a + value);
 
-  if (result & 0xFF == 0x0)
+  if ((result & 0xFF) == 0x0)
   {
     gameboy.cpu.registrers.f.z = 1;
   }

@@ -10,8 +10,8 @@
 #include <SDL.h>
 
 #include "imgui.h"
-#include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_impl_sdl.h"
 
 #include <iostream>
 #include <string>
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
   app.add_option("-r,--rom,rom", rom, "ROM to load");
 
   bool debug = false;
-  app.add_option("-d,--debug", debug, "Enable debug window");
+  app.add_flag("-d,--debug", debug, "Enable debug window");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
     long last_ticks = gameboy.ticks;
     if (!gameboy.debugging)
     {
-      while (gameboy.ticks - last_ticks < 69905)
+      while (gameboy.ticks - last_ticks < 69905 && !gameboy.debugging)
       {
         gameboy.runTick();
       }

@@ -17,6 +17,7 @@
 
 #include <bitset>
 #include <cstdint>
+#include <string>
 
 #include "controls.h"
 #include "memory.h"
@@ -88,12 +89,7 @@ struct Registrers
 
 struct Operands
 {
-  Operands(size_t size)
-  {
-    this->size = size;
-  }
   uint8_t values[2];
-  uint8_t size;
 };
 
 struct Instruction
@@ -103,6 +99,8 @@ struct Instruction
   uint8_t ticks;
   void (*execute)(GameBoy &, Operands &) = NULL;
 };
+
+std::string format_instruction(const Instruction &instruction, const Operands &operands);
 
 struct CPU
 {

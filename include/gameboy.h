@@ -5,6 +5,8 @@
 #define DIV_REGISTER_UPDATE_FREQUENCY 16384
 #define DIV_REGISTER_UPDATE_TICKS (OPS_PER_SEC / DIV_REGISTER_UPDATE_FREQUENCY)
 
+#define BREAKPOINTS_BUFFER_LENGTH 5
+
 // #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
@@ -13,7 +15,14 @@
 //#define PRINT_GPU_REGISTRERS
 #endif
 
+#include <algorithm>
+#include <cstdio>
+#include <map>
+#include <set>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "imgui.h"
 #include <imgui_memory_editor/imgui_memory_editor.h>
@@ -24,8 +33,7 @@
 #include "cpu.h"
 #include "gpu.h"
 #include "memory.h"
-
-extern Memory *current_memory_to_use;
+#include "util.h"
 
 const int timer_ticks[] = {
     OPS_PER_SEC / 4096 /*Hz*/,
@@ -34,9 +42,37 @@ const int timer_ticks[] = {
     OPS_PER_SEC / 16384 /*Hz*/
 };
 
+enum class BreakpointType
+{
+  PC,
+  MEMORY,
+  INSTRUCTION
+};
+
+extern const std::unordered_map<BreakpointType, std::string> breakpoint_type_to_string;
+
+struct BreakpointMemoryActionType
+{
+  bool read = false;
+  bool write = false;
+};
+
+struct Breakpoint
+{
+  uint16_t address;
+  BreakpointType type;
+  BreakpointMemoryActionType memory_action;
+};
+
+extern GameBoy *current_gameboy_to_use;
+
+ImU8 read_memory_data(const ImU8 *data, size_t offset);
+void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write);
+bool highlight_memory_data(const ImU8 *data, size_t offset);
+
 struct GameBoy
 {
-  GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&(this->memory), &(this->ticks)), gpu(&(this->memory), &(this->ticks), &(this->cpu)), last_operands(0)
+  GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&(this->memory), &(this->ticks)), gpu(&(this->memory), &(this->ticks), &(this->cpu))
   {
     this->keys.p14.pad_bool = 0x00;
     this->keys.p15.pad_bool = 0X00;
@@ -53,6 +89,9 @@ struct GameBoy
 
     this->memory_editor.ReadFn = read_memory_data;
     this->memory_editor.WriteFn = write_memory_data;
+    this->memory_editor.HighlightFn = highlight_memory_data;
+
+    memset(this->breakpoints_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
   }
 
   ~GameBoy()
@@ -81,14 +120,18 @@ struct GameBoy
   bool debugging = false;
   bool step = false;
 
-  bool is_window_open = true;
-
   unsigned long ticks = 0;
   unsigned long last_ticks = 0;
   unsigned long last_check_ticks = 0;
 
   const Instruction *last_instruction = NULL;
   Operands last_operands;
+
+  std::unordered_map<BreakpointType, std::map<uint16_t, Breakpoint>> breakpoints;
+
+  // GUI related variables
+  bool breakpoints_window = false;
+  char breakpoints_input_buffer[BREAKPOINTS_BUFFER_LENGTH];
 
   void runTick()
   {
@@ -115,7 +158,7 @@ struct GameBoy
         }
         else
         {
-          *(this->tima_register)++;
+          (*(this->tima_register))++;
         }
       }
     }
@@ -211,6 +254,7 @@ struct GameBoy
     }
   }
 
+  void fetchAndDecodeInstruction(uint8_t &instruction_code, Instruction &instruction, Operands &operands);
   bool executeInstruction();
   bool executeGPU(unsigned long ticks_elapsed)
   {
@@ -218,75 +262,5 @@ struct GameBoy
   }
   bool executeInterrupts();
 
-  void render()
-  {
-    if (ImGui::Begin(this->gameboy_title.c_str(), &this->is_window_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar))
-    {
-      //ImGui::SetWindowSize(ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
-      ImGui::Image((void *)(intptr_t)this->gpu.frame_texture, ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
-    }
-    ImGui::End();
-
-    std::string cpu_debug_title = this->gameboy_title;
-    cpu_debug_title.append(" - CPU");
-
-    if (ImGui::Begin(cpu_debug_title.c_str(), NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar))
-    {
-      ImGui::Text("AF: 0x%04X Z: %d N: %d H: %d C: %d", this->cpu.registrers.af, this->cpu.registrers.f.z, this->cpu.registrers.f.n, this->cpu.registrers.f.h, this->cpu.registrers.f.c);
-      ImGui::Text("BC: 0x%04X", this->cpu.registrers.bc);
-      ImGui::Text("DE: 0x%04X", this->cpu.registrers.de);
-      ImGui::Text("HL: 0x%04X", this->cpu.registrers.hl);
-      ImGui::Text("PC: 0x%04X", this->cpu.registrers.pc);
-      ImGui::Text("SP: 0x%04X", this->cpu.registrers.sp);
-      ImGui::Text("IME: 0x%02X", this->cpu.registrers.ime);
-      ImGui::Text("Ticks: %ld", this->ticks);
-      if (this->last_instruction != NULL)
-      {
-        if (this->last_instruction->size == 0)
-        {
-          ImGui::Text("Last Executed OP: %s", this->last_instruction->name.c_str());
-        }
-        else if (this->last_instruction->size == 1)
-        {
-          ImGui::Text("Last Executed OP: %s 0x%02X", this->last_instruction->name.c_str(), this->last_operands.values[0]);
-        }
-        else if (this->last_instruction->size == 2)
-        {
-          ImGui::Text("Last Executed OP: %s 0x%02X 0x%02X", this->last_instruction->name.c_str(), this->last_operands.values[0], this->last_operands.values[1]);
-        }
-      }
-      ImGui::Text("Divider: %d", *(this->div_register));
-      ImGui::Text("Timer: %d", *(this->tima_register));
-      std::string mode;
-      switch (this->gpu.current_mode)
-      {
-      case GPU_mode::H_BLANK:
-        mode = "H_BLANK";
-        break;
-      case GPU_mode::V_BLANK:
-        mode = "V_BLANK";
-        break;
-      case GPU_mode::OAM:
-        mode = "OAM";
-        break;
-      case GPU_mode::VRAM:
-        mode = "VRAM";
-        break;
-      }
-      ImGui::Text("Mode: %s", mode.c_str());
-      ImGui::Text("Scan line: %d", *(this->gpu.scanline));
-      ImGui::Checkbox("Debugging", &(this->debugging));
-      if (this->debugging)
-      {
-        if (ImGui::Button("Step"))
-        {
-          this->step = true;
-        }
-      }
-    }
-    ImGui::End();
-
-    current_memory_to_use = &(this->memory);
-    this->memory_editor.DrawWindow("Memory Editor", 0x0000, TOTAL_MEMORY_SIZE + 1);
-  }
+  void render();
 };
