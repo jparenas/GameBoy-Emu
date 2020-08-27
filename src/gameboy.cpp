@@ -52,6 +52,8 @@ bool GameBoy::executeInstruction()
     std::cout << "Unable to execute instruction " << instruction.name << " 0x" << std::hex << (int)instruction_code << std::endl;
     return false;
   }
+  this->last_instruction = &(instruction_set[instruction_code]);
+  this->last_operands = operands;
   return true;
 }
 

@@ -97,10 +97,11 @@ int main(int argc, char *argv[])
   ImGui_ImplOpenGL3_Init(glsl_version);
 
   GameBoy gameboy(rom);
+  gameboy.debugging = debug;
 
   bool done = false;
   const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-  while (!done)
+  while (!done && gameboy.running)
   {
     // Poll and handle events (inputs, window resize, etc.)
     // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -124,9 +125,17 @@ int main(int argc, char *argv[])
     ImGui::NewFrame();
 
     long last_ticks = gameboy.ticks;
-    while (gameboy.ticks - last_ticks < 69905)
+    if (!gameboy.debugging)
+    {
+      while (gameboy.ticks - last_ticks < 69905)
+      {
+        gameboy.runTick();
+      }
+    }
+    else if (gameboy.step)
     {
       gameboy.runTick();
+      gameboy.step = false;
     }
 
     gameboy.render();

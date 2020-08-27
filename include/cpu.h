@@ -23,10 +23,7 @@
 
 struct Flags
 {
-  bool _01 : 1;
-  bool _02 : 1;
-  bool _03 : 1;
-  bool _04 : 1;
+  uint8_t _0 : 4;
   bool c : 1;
   bool h : 1;
   bool n : 1;
@@ -40,10 +37,7 @@ struct Registrers
     union {
       struct
       {
-        union {
-          Flags f;
-          uint8_t _f;
-        };
+        Flags f;
         uint8_t a;
       };
       uint16_t af;
@@ -92,12 +86,33 @@ struct Registrers
   uint8_t ime;
 };
 
+struct Operands
+{
+  Operands(size_t size)
+  {
+    this->size = size;
+  }
+  uint8_t values[2];
+  uint8_t size;
+};
+
+struct Instruction
+{
+  std::string name;
+  uint8_t size;
+  uint8_t ticks;
+  void (*execute)(GameBoy &, Operands &) = NULL;
+};
+
 struct CPU
 {
   CPU(Memory *memory, unsigned long *ticks)
   {
     this->registrers.a = 0x01;
-    this->registrers._f = 0xB0;
+    this->registrers.f.z = 1;
+    this->registrers.f.h = 1;
+    this->registrers.f.c = 1;
+    this->registrers.f.n = 1;
     this->registrers.bc = 0x0013;
     this->registrers.de = 0x00D8;
     this->registrers.hl = 0x014D;

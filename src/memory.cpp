@@ -2,11 +2,13 @@
 #include <fstream>
 #include <iostream>
 
+#include "gameboy.h"
 #include "memory.h"
 
-Memory::Memory(std::string filename, Keys *keys)
+Memory::Memory(GameBoy *gameboy, std::string filename, Keys *keys)
 {
   this->keys = keys;
+  this->gameboy = gameboy;
 
   this->read_ROM(filename);
 }
@@ -109,6 +111,7 @@ void Memory::read_ROM(std::string filename)
 
   this->current_ram_bank = 0;
   this->current_rom_bank = 1;
+  this->rom_loaded = true;
 }
 
 uint8_t *Memory::read_raw_byte(uint16_t address)
@@ -258,7 +261,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   {
     if (this->enable_ram_write)
     {
-      this->switchable_ram[address - SWITCHABLE_RAM_BEGIN + this->current_ram_bank * RAM_BANK_SIZE] = value;
+      this->switchable_ram[address - SWITCHABLE_RAM_BEGIN + this->current_ram_bank * (RAM_BANK_SIZE)] = value;
     }
   }
   else if (address <= INTERNAL_RAM_END && address >= INTERNAL_RAM_BEGIN)
@@ -330,4 +333,16 @@ void Memory::write_short(uint16_t address, uint16_t value)
 {
   this->write_byte(address, (uint8_t)(value & 0x00FF));
   this->write_byte(address + 1, (uint8_t)((value & 0xFF00) >> 8));
+}
+
+Memory *current_memory_to_use = NULL;
+
+ImU8 read_memory_data(const ImU8 *data, size_t offset)
+{
+  return current_memory_to_use->read_byte(offset);
+}
+
+void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write)
+{
+  *(current_memory_to_use->read_raw_byte(offset)) = data_to_write;
 }

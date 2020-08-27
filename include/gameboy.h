@@ -4,7 +4,7 @@
 
 #define DIV_REGISTER_LOCATION 0xFF04
 #define DIV_REGISTER_UPDATE_FREQUENCY 16384
-#define DIV_REGISTER_UPDATE_TICKS OPS_PER_SEC / DIV_REGISTER_UPDATE_FREQUENCY
+#define DIV_REGISTER_UPDATE_TICKS (OPS_PER_SEC / DIV_REGISTER_UPDATE_FREQUENCY)
 
 // #define ENABLE_DEBUG
 
@@ -17,6 +17,7 @@
 #include <string>
 
 #include "imgui.h"
+#include <imgui_memory_editor/imgui_memory_editor.h>
 
 #include <SDL.h>
 
@@ -25,9 +26,11 @@
 #include "gpu.h"
 #include "memory.h"
 
+extern Memory *current_memory_to_use;
+
 struct GameBoy
 {
-  GameBoy(std::string filename) : memory(filename, &keys), cpu(&this->memory, &this->ticks), gpu(&this->memory, &this->ticks, &this->cpu)
+  GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&this->memory, &this->ticks), gpu(&this->memory, &this->ticks, &this->cpu), last_operands(0)
   {
     this->keys.p14.pad_bool = 0x00;
     this->keys.p15.pad_bool = 0X00;
@@ -38,6 +41,9 @@ struct GameBoy
     this->rom_title = this->memory.get_rom_title();
     this->gameboy_title = "Gameboy - ";
     this->gameboy_title.append(this->rom_title);
+
+    this->memory_editor.ReadFn = read_memory_data;
+    this->memory_editor.WriteFn = write_memory_data;
   }
 
   ~GameBoy()
@@ -49,6 +55,8 @@ struct GameBoy
   CPU cpu;
   GPU gpu;
 
+  MemoryEditor memory_editor;
+
   uint8_t *div_register;
 
   Keys keys;
@@ -58,16 +66,17 @@ struct GameBoy
 
   bool halted = false;
   bool running = true;
+  bool debugging = false;
+  bool step = false;
 
   bool is_window_open = true;
-
-#ifdef ENABLE_DEBUG
-  bool debugging = true;
-#endif
 
   unsigned long ticks = 0;
   unsigned long last_ticks = 0;
   unsigned long last_check_ticks = 0;
+
+  const Instruction *last_instruction = NULL;
+  Operands last_operands;
 
   void runTick()
   {
@@ -108,11 +117,7 @@ struct GameBoy
 
   void handleEvent(SDL_Event &event)
   {
-    if (event.type == SDL_QUIT)
-    {
-      this->running = false;
-    }
-    else if (event.type == SDL_KEYDOWN || SDL_KEYUP)
+    if (event.type == SDL_KEYDOWN || SDL_KEYUP)
     {
       bool p14_change, p15_change;
       p14_change = false;
@@ -180,9 +185,53 @@ struct GameBoy
 
   void render()
   {
-    ImGui::Begin(this->gameboy_title.c_str(), &this->is_window_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar);
-    //ImGui::SetWindowSize(ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
-    ImGui::Image((void *)(intptr_t)this->gpu.frame_texture, ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
+    if (ImGui::Begin(this->gameboy_title.c_str(), &this->is_window_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar))
+    {
+      //ImGui::SetWindowSize(ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
+      ImGui::Image((void *)(intptr_t)this->gpu.frame_texture, ImVec2(OUTPUT_WIDTH * 2, OUTPUT_HEIGHT * 2));
+    }
     ImGui::End();
+
+    std::string cpu_debug_title = this->gameboy_title;
+    cpu_debug_title.append(" - CPU");
+
+    if (ImGui::Begin(cpu_debug_title.c_str(), NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar))
+    {
+      ImGui::Text("AF: 0x%04X Z: %d N: %d H: %d C: %d", this->cpu.registrers.af, this->cpu.registrers.f.z, this->cpu.registrers.f.n, this->cpu.registrers.f.h, this->cpu.registrers.f.c);
+      ImGui::Text("BC: 0x%04X", this->cpu.registrers.bc);
+      ImGui::Text("DE: 0x%04X", this->cpu.registrers.de);
+      ImGui::Text("HL: 0x%04X", this->cpu.registrers.hl);
+      ImGui::Text("PC: 0x%04X", this->cpu.registrers.pc);
+      ImGui::Text("SP: 0x%04X", this->cpu.registrers.sp);
+      ImGui::Text("IME: 0x%02X", this->cpu.registrers.ime);
+      ImGui::Text("Ticks: %ld", this->ticks);
+      if (this->last_instruction != NULL)
+      {
+        if (this->last_instruction->size == 0)
+        {
+          ImGui::Text("Last Executed OP: %s", this->last_instruction->name.c_str());
+        }
+        else if (this->last_instruction->size == 1)
+        {
+          ImGui::Text("Last Executed OP: %s 0x%02X", this->last_instruction->name.c_str(), this->last_operands.values[0]);
+        }
+        else if (this->last_instruction->size == 2)
+        {
+          ImGui::Text("Last Executed OP: %s 0x%02X 0x%02X", this->last_instruction->name.c_str(), this->last_operands.values[0], this->last_operands.values[1]);
+        }
+      }
+      ImGui::Checkbox("Debugging", &(this->debugging));
+      if (this->debugging)
+      {
+        if (ImGui::Button("Step"))
+        {
+          this->step = true;
+        }
+      }
+    }
+    ImGui::End();
+
+    current_memory_to_use = &(this->memory);
+    this->memory_editor.DrawWindow("Memory Editor", 0x0000, TOTAL_MEMORY_SIZE + 1);
   }
 };

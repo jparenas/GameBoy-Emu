@@ -5,26 +5,9 @@
 
 #include "extended_ops.h"
 #include "gameboy.h"
+#include "cpu.h"
 #include "memory.h"
 #include "ops_util.h"
-
-struct Operands
-{
-  Operands(size_t size)
-  {
-    this->size = size;
-  }
-  uint8_t values[2];
-  uint8_t size;
-};
-
-struct Instruction
-{
-  std::string name;
-  uint8_t size;
-  uint8_t ticks;
-  void (*execute)(GameBoy &, Operands &) = NULL;
-};
 
 void nop(GameBoy &gameboy, Operands &operands)
 {
@@ -598,6 +581,7 @@ void ret_c(GameBoy &gameboy, Operands &operands)
 void pop_af(GameBoy &gameboy, Operands &operands)
 {
   gameboy.cpu.registrers.af = pop_short_from_stack(gameboy);
+  gameboy.cpu.registrers.f._0 = 0; // Zero out unneeded flags from register
 }
 
 void pop_bc(GameBoy &gameboy, Operands &operands)

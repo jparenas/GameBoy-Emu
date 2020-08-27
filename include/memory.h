@@ -37,13 +37,17 @@
 #define WINDOW_Y_POSITION 0xFF4A
 #define WINDOW_X_POSITION 0xFF4B
 
-#define ROM_BANK_SIZE SWITCHABLE_ROM_END - SWITCHABLE_ROM_BEGIN + 1
-#define RAM_BANK_SIZE SWITCHABLE_RAM_END - SWITCHABLE_RAM_BEGIN + 1
+#define ROM_BANK_SIZE (SWITCHABLE_ROM_END - SWITCHABLE_ROM_BEGIN + 1)
+#define RAM_BANK_SIZE (SWITCHABLE_RAM_END - SWITCHABLE_RAM_BEGIN + 1)
+
+#define TOTAL_MEMORY_SIZE (STACK_INTERNAL_RAM_END - ROM_BEGIN)
 
 #define JOYPAD_LOCATION 0xFF00
 
 #include <memory>
 #include <string>
+
+#include "imgui.h"
 
 #include "controls.h"
 
@@ -53,6 +57,8 @@ enum class MBC
   MBC_1,
   MBC_2
 };
+
+struct GameBoy;
 
 class Memory
 {
@@ -75,19 +81,30 @@ private:
 
   Keys *keys;
 
+  GameBoy *gameboy;
+
   std::string rom_title;
+  bool rom_loaded = false;
 
   void read_ROM(std::string filename);
 
 public:
-  Memory(std::string filename, Keys *keys);
+  Memory(GameBoy *gameboy, std::string filename, Keys *keys);
   uint8_t *read_raw_byte(uint16_t address);
   uint8_t read_byte(uint16_t address);
   uint16_t read_short(uint16_t address);
   void write_byte(uint16_t address, uint8_t value);
   void write_short(uint16_t address, uint16_t value);
+
   std::string get_rom_title()
   {
     return this->rom_title;
   }
+  bool is_rom_loaded()
+  {
+    return this->rom_loaded;
+  }
 };
+
+ImU8 read_memory_data(const ImU8 *data, size_t offset);
+void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write);
