@@ -7,19 +7,6 @@
 
 #define OAM_TIME 80
 
-#define VRAM_POSITION 0x8000
-#define LCDC_POSITION 0xFF40
-#define STAT_POSITION 0xFF41
-#define SCROLL_X_POSITION 0xFF42
-#define SCROLL_Y_POSITION 0xFF43
-#define SCANLINE_POSITION 0xFF44
-#define LY_C_POSITION 0xFF45
-#define BACKGROUND_PALETTE_POSITION 0xFF47
-#define SPRITE_0_PALETTE_POSITION 0xFF48
-#define SPRITE_1_PALETTE_POSITION 0xFF49
-#define WINDOW_Y_POSITION 0xFF4A
-#define WINDOW_X_POSITION 0xFF4B
-
 #define OAM_LOCATION 0xFE00
 
 #include <algorithm>
@@ -27,6 +14,13 @@
 #include <set>
 
 #include <SDL.h>
+
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGl/glu.h>
+#else
+#include <GL/glu.h>
+#endif
 
 #include "cpu.h"
 #include "memory.h"
@@ -98,13 +92,8 @@ enum class GPU_mode
 
 struct GPU
 {
-  GPU(Memory *memory, unsigned long *ticks, CPU *cpu, SDL_Renderer *renderer)
+  GPU(Memory *memory, unsigned long *ticks, CPU *cpu) : memory(memory), ticks(ticks), cpu(cpu)
   {
-    this->memory = memory;
-    this->ticks = ticks;
-    this->renderer = renderer;
-    this->cpu = cpu;
-
     this->lcd_control = (LCD_Control *)this->memory->read_raw_byte(LCDC_POSITION);
     this->ly_c = this->memory->read_raw_byte(LY_C_POSITION);
     this->scroll_x = this->memory->read_raw_byte(SCROLL_X_POSITION);
@@ -120,7 +109,12 @@ struct GPU
     *(this->memory->read_raw_byte(SPRITE_1_PALETTE_POSITION)) = 0xFF;
     *(this->memory->read_raw_byte(SCANLINE_POSITION)) = 0x00;
 
-    this->framebuffer = SDL_CreateTexture(this->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+    glGenTextures(1, &this->frame_texture);
+    glBindTexture(GL_TEXTURE_2D, this->frame_texture);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, OUTPUT_WIDTH, OUTPUT_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, this->pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     for (int y = 0; y < OUTPUT_HEIGHT; y++)
     {
@@ -135,12 +129,12 @@ struct GPU
 
   ~GPU()
   {
-    SDL_DestroyTexture(this->framebuffer);
+    glDeleteTextures(1, &this->frame_texture);
   }
 
   unsigned long *ticks;
 
-  uint32_t gpu_ticks = 116;
+  uint32_t gpu_ticks = 29;
   unsigned long previous_ticks = 0;
 
   LCD_Control *lcd_control;
@@ -157,14 +151,13 @@ struct GPU
 
   GPU_mode current_mode = GPU_mode::V_BLANK;
 
-  SDL_Renderer *renderer;
-  SDL_Texture *framebuffer;
+  //SDL_Renderer *renderer;
+  GLuint frame_texture;
   Color pixels[OUTPUT_WIDTH * OUTPUT_HEIGHT];
 
-  bool executeGPU()
+  bool executeGPU(unsigned long ticks_elapsed)
   {
-    this->gpu_ticks += *(this->ticks) - previous_ticks;
-    previous_ticks = *(this->ticks);
+    this->gpu_ticks += ticks_elapsed;
 
     switch (this->current_mode)
     {
@@ -439,16 +432,10 @@ struct GPU
 
   void renderFramebuffer()
   {
-    // std::cout << "Updated screen" << std::endl;
-    SDL_UpdateTexture(this->framebuffer, NULL, this->pixels, OUTPUT_WIDTH * sizeof(Color));
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(this->renderer);
     if ((*(this->lcd_control)).lcd_control_operation) // Bit 7
     {
-      // std::cout << "Updated framebuffer" << std::endl;
-      SDL_RenderCopy(this->renderer, this->framebuffer, NULL, NULL);
-      SDL_RenderPresent(this->renderer);
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, OUTPUT_WIDTH, OUTPUT_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, this->pixels);
     }
   }
 };

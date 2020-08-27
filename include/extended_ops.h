@@ -142,6 +142,48 @@ void rr_hlp(GameBoy &gameboy)
   gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
 }
 
+void rl_a(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.a);
+}
+
+void rl_b(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.b);
+}
+
+void rl_c(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.c);
+}
+
+void rl_d(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.d);
+}
+
+void rl_e(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.e);
+}
+
+void rl_h(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.h);
+}
+
+void rl_l(GameBoy &gameboy)
+{
+  rl(gameboy, gameboy.cpu.registrers.l);
+}
+
+void rl_hlp(GameBoy &gameboy)
+{
+  uint8_t value = gameboy.memory.read_byte(gameboy.cpu.registrers.hl);
+  rl(gameboy, value);
+  gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
+}
+
 void sla_a(GameBoy &gameboy)
 {
   sla(gameboy, gameboy.cpu.registrers.a);
@@ -1387,14 +1429,14 @@ const struct ExtendedInstruction extended_instruction_set[256] = {
     {"RRC L", 8, NULL},               // 0x0d
     {"RRC (HL)", 16, NULL},           // 0x0e
     {"RRC A", 8, NULL},               // 0x0f
-    {"RL B", 8, NULL},                // 0x10
-    {"RL C", 8, NULL},                // 0x11
-    {"RL D", 8, NULL},                // 0x12
-    {"RL E", 8, NULL},                // 0x13
-    {"RL H", 8, NULL},                // 0x14
-    {"RL L", 8, NULL},                // 0x15
-    {"RL (HL)", 16, NULL},            // 0x16
-    {"RL A", 8, NULL},                // 0x17
+    {"RL B", 8, rl_b},                // 0x10
+    {"RL C", 8, rl_c},                // 0x11
+    {"RL D", 8, rl_d},                // 0x12
+    {"RL E", 8, rl_e},                // 0x13
+    {"RL H", 8, rl_h},                // 0x14
+    {"RL L", 8, rl_l},                // 0x15
+    {"RL (HL)", 16, rl_hlp},          // 0x16
+    {"RL A", 8, rl_a},                // 0x17
     {"RR B", 8, rr_b},                // 0x18
     {"RR C", 8, rr_c},                // 0x19
     {"RR D", 8, rr_d},                // 0x1a

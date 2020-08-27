@@ -5,26 +5,9 @@
 
 #include "extended_ops.h"
 #include "gameboy.h"
+#include "cpu.h"
 #include "memory.h"
 #include "ops_util.h"
-
-struct Operands
-{
-  Operands(size_t size)
-  {
-    this->size = size;
-  }
-  uint8_t values[2];
-  uint8_t size;
-};
-
-struct Instruction
-{
-  std::string name;
-  uint8_t size;
-  uint8_t ticks;
-  void (*execute)(GameBoy &, Operands &) = NULL;
-};
 
 void nop(GameBoy &gameboy, Operands &operands)
 {
@@ -598,6 +581,7 @@ void ret_c(GameBoy &gameboy, Operands &operands)
 void pop_af(GameBoy &gameboy, Operands &operands)
 {
   gameboy.cpu.registrers.af = pop_short_from_stack(gameboy);
+  gameboy.cpu.registrers.f._0 = 0; // Zero out unneeded flags from register
 }
 
 void pop_bc(GameBoy &gameboy, Operands &operands)
@@ -883,7 +867,7 @@ void dec_sp(GameBoy &gameboy, Operands &operands)
 
 void add_base(GameBoy &gameboy, uint8_t value)
 {
-  uint16_t result = (uint16_t)gameboy.cpu.registrers.a + value;
+  uint16_t result = (uint16_t)((uint16_t)gameboy.cpu.registrers.a + value);
 
   if (result & 0xFF == 0x0)
   {
@@ -903,7 +887,7 @@ void add_base(GameBoy &gameboy, uint8_t value)
     gameboy.cpu.registrers.f.c = 0;
   }
 
-  if ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) > 0x0F)
+  if ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) & 0xF0)
   {
     gameboy.cpu.registrers.f.h = 1;
   }

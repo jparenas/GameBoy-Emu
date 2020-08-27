@@ -1,3 +1,9 @@
 [submodule "CLI11"]
 	path = CLI11
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "imgui"]
+	path = imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "imgui_club"]
+	path = imgui_club
+	url = https://github.com/ocornut/imgui_club.git

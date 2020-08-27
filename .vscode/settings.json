@@ -77,6 +77,10 @@
     "memory_resource": "cpp",
     "optional": "cpp",
     "thread": "cpp",
-    "cinttypes": "cpp"
+    "cinttypes": "cpp",
+    "forward_list": "cpp",
+    "unordered_set": "cpp",
+    "regex": "cpp",
+    "shared_mutex": "cpp"
   }
 }
