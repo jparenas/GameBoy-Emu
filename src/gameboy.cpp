@@ -68,7 +68,7 @@ bool GameBoy::executeInstruction()
     std::cout << "Unable to execute instruction " << instruction.name << " 0x" << std::hex << (int)instruction_code << std::endl;
     return false;
   }
-  this->last_instruction = &(instruction_set[instruction_code]);
+  this->last_instruction_code = instruction_code;
   this->last_operands = operands;
   // Check for breakpoints
   auto &breakpoints = this->breakpoints[BreakpointType::PC];
@@ -160,19 +160,12 @@ void GameBoy::render()
       ImGui::Text("Interrupts enabled: %s", bool_to_string(this->cpu.registrers.ime).c_str());
       ImGui::Text("V Blank: %s STAT: %s Timer: %s Joy Pad: %s Serial: %s", bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_VBLANK).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_STAT).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_TIMER).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_JOYPAD).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_SERIAL).c_str());
       ImGui::Text("Ticks: %ld", this->ticks);
-      if (this->last_instruction != NULL)
-      {
-        ImGui::Text("Last Executed OP: %s", format_instruction(*(this->last_instruction), this->last_operands).c_str());
-      }
-      else
-      {
-        ImGui::Text("Last Executed OP: NULL");
-      }
+      ImGui::Text("Last Executed OP: %s", format_instruction(this->last_instruction_code, this->last_operands).c_str());
       uint8_t next_instruction_code;
       Instruction next_instruction;
       Operands next_operands;
       this->fetchAndDecodeInstruction(next_instruction_code, next_instruction, next_operands);
-      ImGui::Text("Next OP: %s", format_instruction(next_instruction, next_operands).c_str());
+      ImGui::Text("Next OP: %s", format_instruction(next_instruction_code, next_operands).c_str());
     }
     if (ImGui::CollapsingHeader("Timers"))
     {

@@ -1665,7 +1665,7 @@ const Instruction instruction_set[256] = {
     {"DEC D", 0, 1, dec_d},                     // 0x15
     {"LD D, 0x%02X", 1, 2, ld_d},               // 0x16
     {"RLA", 0, 1, rla},                         // 0x17
-    {"JR 0x%02X", 1, 2, jr_n},                  // 0x18
+    {"JR %.hhd", 1, 2, jr_n},                   // 0x18
     {"ADD HL, DE", 0, 2, add_hl_de},            // 0x19
     {"LD A, (DE)", 0, 2, ld_a_dep},             // 0x1a
     {"DEC DE", 0, 2, dec_de},                   // 0x1b
@@ -1673,7 +1673,7 @@ const Instruction instruction_set[256] = {
     {"DEC E", 0, 1, dec_e},                     // 0x1d
     {"LD E, 0x%02X", 1, 2, ld_e},               // 0x1e
     {"RRA", 0, 1, rra},                         // 0x1f
-    {"JR NZ, 0x%02X", 1, 2, jr_nz},             // 0x20
+    {"JR NZ, %.hhd", 1, 2, jr_nz},              // 0x20
     {"LD HL, 0x%04X", 2, 3, ld_hl},             // 0x21
     {"LDI (HL), A", 0, 2, ldi_hl_a},            // 0x22
     {"INC HL", 0, 2, inc_hl},                   // 0x23
@@ -1681,7 +1681,7 @@ const Instruction instruction_set[256] = {
     {"DEC H", 0, 1, dec_h},                     // 0x25
     {"LD H, 0x%02X", 1, 2, ld_h},               // 0x26
     {"DAA", 0, 1, daa},                         // 0x27
-    {"JR Z, 0x%02X", 1, 2, jr_z},               // 0x28
+    {"JR Z, %.hhd", 1, 2, jr_z},                // 0x28
     {"ADD HL, HL", 0, 2, add_hl_hl},            // 0x29
     {"LDI A, (HL)", 0, 2, ldi_a_hlp},           // 0x2a
     {"DEC HL", 0, 2, dec_hl},                   // 0x2b
@@ -1689,7 +1689,7 @@ const Instruction instruction_set[256] = {
     {"DEC L", 0, 1, dec_l},                     // 0x2d
     {"LD L, 0x%02X", 1, 2, ld_l},               // 0x2e
     {"CPL", 0, 1, cpl},                         // 0x2f
-    {"JR NC, 0x%02X", 1, 2, jr_nc},             // 0x30
+    {"JR NC, %.hhd", 1, 2, jr_nc},              // 0x30
     {"LD SP, 0x%04X", 2, 3, ld_sp},             // 0x31
     {"LDD (HL), A", 0, 2, ldd_hl_a},            // 0x32
     {"INC SP", 0, 2, inc_sp},                   // 0x33
@@ -1697,7 +1697,7 @@ const Instruction instruction_set[256] = {
     {"DEC (HL)", 0, 3, dec_hlp},                // 0x35
     {"LD (HL), 0x%02X", 1, 3, ld_hlp_n},        // 0x36
     {"SCF", 0, 1, scf},                         // 0x37
-    {"JR C, 0x%02X", 1, 2, jr_c},               // 0x38
+    {"JR C, %.hhd", 1, 2, jr_c},                // 0x38
     {"ADD HL, SP", 0, 2, add_hl_sp},            // 0x39
     {"LDD A, (HL)", 0, 2, ldd_a_hlp},           // 0x3a
     {"DEC SP", 0, 2, dec_sp},                   // 0x3b
@@ -1873,7 +1873,7 @@ const Instruction instruction_set[256] = {
     {"PUSH HL", 0, 4, push_hl},                 // 0xe5
     {"AND 0x%02X", 1, 2, and_n},                // 0xe6
     {"RST 0x20", 0, 8, rst_0x20},               // 0xe7
-    {"ADD SP,0x%02X", 1, 4, add_sp_n},          // 0xe8
+    {"ADD SP, %.hhd", 1, 4, add_sp_n},          // 0xe8
     {"JP HL", 0, 1, jp_hl},                     // 0xe9
     {"LD (0x%04X), A", 2, 4, ld_nnp_a},         // 0xea
     {"UNKNOWN", 0, 0, NULL},                    // 0xeb
@@ -1889,7 +1889,7 @@ const Instruction instruction_set[256] = {
     {"PUSH AF", 0, 4, push_af},                 // 0xf5
     {"OR 0x%02X", 1, 2, or_n},                  // 0xf6
     {"RST 0x30", 0, 8, rst_0x30},               // 0xf7
-    {"LD HL, SP+0x%02X", 1, 3, ld_hl_sp_n},     // 0xf8
+    {"LD HL, SP+%.hhd", 1, 3, ld_hl_sp_n},      // 0xf8
     {"LD SP, HL", 0, 2, ld_sp_hl},              // 0xf9
     {"LD A, (0x%04X)", 2, 4, ld_a_nn},          // 0xfa
     {"EI", 0, 1, ei},                           // 0xfb

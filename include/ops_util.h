@@ -12,4 +12,4 @@ void write_short_to_stack(GameBoy &gameboy, uint16_t value);
 
 uint16_t pop_short_from_stack(GameBoy &gameboy);
 
-std::string format_instruction(const Instruction &instruction, const Operands &operands);
+std::string format_instruction(uint8_t instruction, const Operands &operands);

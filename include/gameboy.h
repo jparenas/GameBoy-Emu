@@ -101,7 +101,7 @@ struct GameBoy
   unsigned long last_ticks = 0;
   unsigned long last_check_ticks = 0;
 
-  const Instruction *last_instruction = NULL;
+  uint8_t last_instruction_code = 0;
   Operands last_operands;
 
   std::unordered_map<BreakpointType, std::map<uint16_t, Breakpoint>> breakpoints;
