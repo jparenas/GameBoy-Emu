@@ -145,21 +145,21 @@ uint8_t *Memory::read_raw_byte(uint16_t address)
   {
     if (address == JOYPAD_LOCATION)
     {
-      if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0x20))
-      {
-        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0xC0 | 0x10 | ((~this->keys->p15.pad_bool) & 0x0F);
-      }
-      else if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0x10))
-      {
-        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0xC0 | 0x20 | ((~this->keys->p14.pad_bool) & 0x0F);
-      }
-      else if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0x30))
+      if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0b00110000))
       {
         this->io[JOYPAD_LOCATION - IO_BEGIN] = 0xFF;
       }
+      else if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0b00100000))
+      {
+        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0b11010000 | ((~this->keys->p15.pad_bool) & 0x0F);
+      }
+      else if (!(this->io[JOYPAD_LOCATION - IO_BEGIN] & 0b00010000))
+      {
+        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0b11100000 | ((~this->keys->p14.pad_bool) & 0x0F);
+      }
       else
       {
-        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0xC0 | 0x0F;
+        this->io[JOYPAD_LOCATION - IO_BEGIN] = 0b11001111;
       }
       return &(this->io[JOYPAD_LOCATION - IO_BEGIN]);
     }
@@ -173,9 +173,20 @@ uint8_t *Memory::read_raw_byte(uint16_t address)
   return NULL;
 }
 
-uint8_t Memory::read_byte(uint16_t address)
+uint8_t Memory::read_byte(uint16_t address, bool trigger_breakpoint)
 {
   //std::cout << "Read byte at 0x" << std::hex << address << ": 0x" << (int)*(this->read_raw_byte(address)) << std::endl;
+  if (trigger_breakpoint)
+  {
+    auto &breakpoints = this->gameboy->breakpoints[BreakpointType::MEMORY];
+    auto it = breakpoints.find(address);
+    if (it != breakpoints.end() && (*it).second.memory_action.read)
+    {
+      // Found a breakpoint
+      this->gameboy->debugging = true;
+      this->gameboy->breakpoint_trigger = &((*it).second);
+    }
+  }
   return *(this->read_raw_byte(address));
 }
 
@@ -187,6 +198,14 @@ uint16_t Memory::read_short(uint16_t address)
 void Memory::write_byte(uint16_t address, uint8_t value)
 {
   //std::cout << "Written byte at 0x" << std::hex << address << ": 0x" << (int)value << std::endl;
+  auto &breakpoints = this->gameboy->breakpoints[BreakpointType::MEMORY];
+  auto it = breakpoints.find(address);
+  if (it != breakpoints.end() && (*it).second.memory_action.write)
+  {
+    // Found a breakpoint
+    this->gameboy->debugging = true;
+    this->gameboy->breakpoint_trigger = &((*it).second);
+  }
   if (address < VRAM_BEGIN)
   {
     // Banking Handling
@@ -272,7 +291,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   }
   else if (address <= OAM_END && address >= OAM_BEGIN)
   {
-    if ((this->read_byte(0xFF41) /*STAT*/ & 0b00000011) != 0b10 && (this->read_byte(0xFF41) /*STAT*/ & 0b00000011) != 0b11)
+    if ((this->read_byte(0xFF41, false) /*STAT*/ & 0b00000011) != 0b10 && (this->read_byte(0xFF41, false) /*STAT*/ & 0b00000011) != 0b11)
     {
       this->oam[address - OAM_BEGIN] = value;
     }
@@ -284,7 +303,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     //std::cout << "DMA request, address 0x" << std::hex << start_address << std::endl;
     for (uint16_t i = 0; i < 160; i++)
     {
-      this->oam[i] = this->read_byte(start_address + i);
+      this->oam[i] = this->read_byte(start_address + i, false);
       //std::cout << (int)this->oam[i];
     }
     //std::cout << std::endl;
@@ -293,7 +312,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
   {
     if (address == JOYPAD_LOCATION)
     {
-      this->io[address - IO_BEGIN] = value | 0xCF;
+      this->io[JOYPAD_LOCATION - IO_BEGIN] = value; // | 0b11001111;
       return;
     }
     else if (address == 0xFF02)
@@ -309,13 +328,17 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     }
     else if (address == TAC_REGISTER_POSITION)
     {
-      uint8_t previous_timer_frequency = this->read_byte(TAC_REGISTER_POSITION) & 0b00000011;
+      uint8_t previous_timer_frequency = this->read_byte(TAC_REGISTER_POSITION, false) & 0b00000011;
       uint8_t new_timer_frequency = value & 0b00000011;
       if (previous_timer_frequency != new_timer_frequency)
       {
         this->gameboy->timer_counter = timer_ticks[new_timer_frequency];
       }
       this->io[address - IO_BEGIN] = value;
+    }
+    else if (address == STAT_POSITION)
+    {
+      this->io[address - IO_BEGIN] = value & 0b01111000;
     }
     else if (address == SCANLINE_POSITION)
     {

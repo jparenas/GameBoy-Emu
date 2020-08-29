@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "gameboy.h"
-#include "ops.h"
+#include "ops_util.h"
 
 const std::unordered_map<BreakpointType, std::string> breakpoint_type_to_string = {
     {BreakpointType::PC, "PC"},
@@ -9,15 +9,38 @@ const std::unordered_map<BreakpointType, std::string> breakpoint_type_to_string 
     {BreakpointType::INSTRUCTION, "Instruction"},
 };
 
+GameBoy::GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&(this->memory), &(this->ticks)), gpu(&(this->memory), &(this->ticks), &(this->cpu))
+{
+  this->keys.p14.pad_bool = 0x00;
+  this->keys.p15.pad_bool = 0X00;
+
+  *(this->memory.read_raw_byte(JOYPAD_LOCATION)) = 0xFF;
+  this->div_register = this->memory.read_raw_byte(DIV_REGISTER_POSITION);
+  *(this->div_register) = 0xCF;
+  this->tima_register = this->memory.read_raw_byte(TIMA_REGISTER_POSITION);
+  this->timer_counter = timer_ticks[0];
+
+  this->rom_title = this->memory.get_rom_title();
+  this->gameboy_title = "Gameboy - ";
+  this->gameboy_title.append(this->rom_title);
+
+  this->memory_editor.ReadFn = read_memory_data;
+  this->memory_editor.WriteFn = write_memory_data;
+  this->memory_editor.HighlightFn = highlight_memory_data;
+
+  memset(this->breakpoint_pc_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+  memset(this->breakpoint_memory_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+}
+
 void GameBoy::fetchAndDecodeInstruction(uint8_t &instruction_code, Instruction &instruction, Operands &operands)
 {
-  instruction_code = this->memory.read_byte(this->cpu.registrers.pc);
+  instruction_code = this->memory.read_byte(this->cpu.registrers.pc, false);
   instruction = instruction_set[instruction_code];
   if (instruction.size > 0)
   {
     for (uint8_t i = 0; i < instruction.size; i++)
     {
-      operands.values[i] = this->memory.read_byte(this->cpu.registrers.pc + i + 1);
+      operands.values[i] = this->memory.read_byte(this->cpu.registrers.pc + i + 1, false);
     }
   }
 }
@@ -56,6 +79,7 @@ bool GameBoy::executeInstruction()
     std::cout << "0x" << std::hex << (*it).first << std::dec << std::endl;
     // Found a breakpoint
     this->debugging = true;
+    this->breakpoint_trigger = &((*it).second);
   }
   return true;
 }
@@ -73,7 +97,7 @@ bool GameBoy::executeInterrupts()
         // std::cout << "Calling VBLANK interrupt " << std::endl;
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_VBLANK;
         this->gpu.renderFramebuffer();
-        this->cpu.registrers.ime = 0x0;
+        this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_VBLANK_INSTRUCTION;
         this->ticks += 12;
@@ -81,7 +105,7 @@ bool GameBoy::executeInterrupts()
       else if (enabled_flags & INTERRUPT_STAT)
       {
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_STAT;
-        this->cpu.registrers.ime = 0x0;
+        this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_STAT_INSTRUCTION;
         this->ticks += 12;
@@ -89,7 +113,7 @@ bool GameBoy::executeInterrupts()
       else if (enabled_flags & INTERRUPT_TIMER)
       {
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_TIMER;
-        this->cpu.registrers.ime = 0x0;
+        this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_TIMER_INSTRUCTION;
         this->ticks += 12;
@@ -97,7 +121,7 @@ bool GameBoy::executeInterrupts()
       else if (enabled_flags & INTERRUPT_SERIAL)
       {
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_SERIAL;
-        this->cpu.registrers.ime = 0x0;
+        this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_SERIAL_INSTRUCTION;
         this->ticks += 12;
@@ -105,7 +129,7 @@ bool GameBoy::executeInterrupts()
       else if (enabled_flags & INTERRUPT_JOYPAD)
       {
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_JOYPAD;
-        this->cpu.registrers.ime = 0x0;
+        this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_JOYPAD_INSTRUCTION;
         this->ticks += 12;
@@ -133,7 +157,8 @@ void GameBoy::render()
       ImGui::Text("HL: 0x%04X", this->cpu.registrers.hl);
       ImGui::Text("PC: 0x%04X", this->cpu.registrers.pc);
       ImGui::Text("SP: 0x%04X", this->cpu.registrers.sp);
-      ImGui::Text("IME: 0x%02X", this->cpu.registrers.ime);
+      ImGui::Text("Interrupts enabled: %s", bool_to_string(this->cpu.registrers.ime).c_str());
+      ImGui::Text("V Blank: %s STAT: %s Timer: %s Joy Pad: %s Serial: %s", bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_VBLANK).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_STAT).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_TIMER).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_JOYPAD).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_SERIAL).c_str());
       ImGui::Text("Ticks: %ld", this->ticks);
       if (this->last_instruction != NULL)
       {
@@ -156,31 +181,26 @@ void GameBoy::render()
     }
     if (ImGui::CollapsingHeader("GPU"))
     {
-      std::string mode;
-      switch (this->gpu.current_mode)
-      {
-      case GPU_mode::H_BLANK:
-        mode = "H_BLANK";
-        break;
-      case GPU_mode::V_BLANK:
-        mode = "V_BLANK";
-        break;
-      case GPU_mode::OAM:
-        mode = "OAM";
-        break;
-      case GPU_mode::VRAM:
-        mode = "VRAM";
-        break;
-      }
-      ImGui::Text("Mode: %s", mode.c_str());
+      ImGui::Text("Mode: %s", gpu_mode_to_string(this->gpu.current_mode).c_str());
+      ImGui::Text("GPU Ticks: %d", this->gpu.gpu_ticks);
       ImGui::Text("Scan line: %d", *(this->gpu.scanline));
     }
-    ImGui::Checkbox("Debugging", &(this->debugging));
+    if (ImGui::Checkbox("Debugging", &(this->debugging)))
+    {
+      this->breakpoint_trigger = NULL;
+    }
     if (this->debugging)
     {
       if (ImGui::Button("Step"))
       {
+        this->breakpoint_trigger = NULL;
         this->step = true;
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Continue"))
+      {
+        this->breakpoint_trigger = NULL;
+        this->debugging = false;
       }
     }
     if (ImGui::Button("Breakpoints"))
@@ -207,15 +227,29 @@ void GameBoy::render()
       ImGui::Text("Breakpoints:");
       std::for_each(this->breakpoints.begin(), this->breakpoints.end(), [&](auto &map) {
         std::vector<uint16_t> breakpoints_to_delete;
-        for (auto breakpoint : map.second)
+        for (auto &breakpoint : map.second)
         {
           bool pushed_color = false;
-          if (breakpoint.second.type == BreakpointType::PC && breakpoint.first == this->cpu.registrers.pc)
+          if (&(breakpoint.second) == this->breakpoint_trigger)
           {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 0, 0, 1.0));
             pushed_color = true;
           }
           ImGui::Text("Address: 0x%04X Type: %s", breakpoint.first, breakpoint_type_to_string.at(breakpoint.second.type).c_str());
+          if (breakpoint.second.type == BreakpointType::MEMORY)
+          {
+            std::string mode;
+            if (breakpoint.second.memory_action.read)
+            {
+              mode.append("R");
+            }
+            if (breakpoint.second.memory_action.write)
+            {
+              mode.append("W");
+            }
+            ImGui::SameLine();
+            ImGui::Text("Mode: %s", mode.c_str());
+          }
           if (pushed_color)
           {
             ImGui::PopStyleColor();
@@ -235,16 +269,41 @@ void GameBoy::render()
       ImGui::Text("Breakpoints set: %lu", init_if_absent<>(this->breakpoints, BreakpointType::PC).size());
       ImGui::Text("Address:");
       ImGui::SameLine();
+      ImGui::PushItemWidth(80);
       bool entered_address = false;
-      entered_address |= ImGui::InputText("##adress", this->breakpoints_input_buffer, BREAKPOINTS_BUFFER_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
+      entered_address |= ImGui::InputText("##address_pc", this->breakpoint_pc_input_buffer, BREAKPOINTS_BUFFER_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
       ImGui::SameLine();
-      entered_address |= ImGui::Button("Add Breakpoint");
+      entered_address |= ImGui::Button("Add PC Breakpoint");
       if (entered_address)
       {
-        uint16_t byte = convert_string_to_hex(std::string(this->breakpoints_input_buffer));
-        memset(this->breakpoints_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+        uint16_t byte = convert_string_to_hex(std::string(this->breakpoint_pc_input_buffer));
+        memset(this->breakpoint_pc_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
         Breakpoint breakpoint = {byte, BreakpointType::PC};
         init_if_absent<>(this->breakpoints, BreakpointType::PC).insert(std::pair<uint16_t, Breakpoint>(byte, breakpoint));
+      }
+      entered_address = false;
+      ImGui::Text("Address:");
+      ImGui::SameLine();
+      ImGui::PushItemWidth(80);
+      entered_address = false;
+      entered_address |= ImGui::InputText("##address_memory", this->breakpoint_memory_input_buffer, BREAKPOINTS_BUFFER_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
+      ImGui::SameLine();
+      ImGui::Checkbox("Write trigger", &(this->breakpoint_memory_write));
+      ImGui::SameLine();
+      ImGui::Checkbox("Read trigger", &(this->breakpoint_memory_read));
+      ImGui::SameLine();
+      entered_address |= ImGui::Button("Add Memory Breakpoint");
+      if (entered_address)
+      {
+        uint16_t byte = convert_string_to_hex(std::string(this->breakpoint_memory_input_buffer));
+        memset(this->breakpoint_memory_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+        BreakpointMemoryActionType memory_action;
+        memory_action.write = this->breakpoint_memory_write;
+        memory_action.read = this->breakpoint_memory_read;
+        this->breakpoint_memory_write = false;
+        this->breakpoint_memory_read = true;
+        Breakpoint breakpoint = {byte, BreakpointType::MEMORY, memory_action};
+        init_if_absent<>(this->breakpoints, BreakpointType::MEMORY).insert(std::pair<uint16_t, Breakpoint>(byte, breakpoint));
       }
     }
     ImGui::End();
@@ -268,7 +327,7 @@ GameBoy *current_gameboy_to_use = NULL;
 
 ImU8 read_memory_data(const ImU8 *data, size_t offset)
 {
-  return current_gameboy_to_use->memory.read_byte(offset);
+  return current_gameboy_to_use->memory.read_byte(offset, false);
 }
 
 void write_memory_data(ImU8 *data, size_t offset, ImU8 data_to_write)

@@ -84,23 +84,8 @@ struct Registrers
   uint16_t sp;
   uint16_t pc;
 
-  uint8_t ime;
+  bool ime;
 };
-
-struct Operands
-{
-  uint8_t values[2];
-};
-
-struct Instruction
-{
-  std::string name;
-  uint8_t size;
-  uint8_t ticks;
-  void (*execute)(GameBoy &, Operands &) = NULL;
-};
-
-std::string format_instruction(const Instruction &instruction, const Operands &operands);
 
 struct CPU
 {
@@ -122,6 +107,8 @@ struct CPU
     this->interrupt_enable = this->memory->read_raw_byte(IE_POSITION);
     this->interrupt_flags = this->memory->read_raw_byte(IF_POSITION);
   };
+
+  void register_interrupt(uint8_t flag);
 
   Registrers registrers;
   unsigned long *ticks;

@@ -22,3 +22,13 @@ uint16_t convert_string_to_hex(std::string s)
 
   return byte;
 }
+
+bool test_bit(uint8_t byte, uint8_t bit)
+{
+  return ((byte >> bit) & 0x01) == 0x01;
+}
+
+std::string bool_to_string(bool value)
+{
+  return value ? "true" : "false";
+}

@@ -95,7 +95,7 @@ private:
 public:
   Memory(GameBoy *gameboy, std::string filename, Keys *keys);
   uint8_t *read_raw_byte(uint16_t address);
-  uint8_t read_byte(uint16_t address);
+  uint8_t read_byte(uint16_t address, bool trigger_breakpoint = true);
   uint16_t read_short(uint16_t address);
   void write_byte(uint16_t address, uint8_t value);
   void write_short(uint16_t address, uint16_t value);

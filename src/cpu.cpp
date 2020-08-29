@@ -3,20 +3,10 @@
 
 #include "cpu.h"
 
-std::string format_instruction(const Instruction &instruction, const Operands &operands)
+void CPU::register_interrupt(uint8_t flag)
 {
-  char buffer[20];
-  if (instruction.size == 0)
+  if (this->registrers.ime && *(this->interrupt_enable) & flag)
   {
-    sprintf(buffer, "%s", instruction.name.c_str());
+    *(this->interrupt_flags) |= flag;
   }
-  else if (instruction.size == 1)
-  {
-    sprintf(buffer, "%s 0x%02X", instruction.name.c_str(), operands.values[0]);
-  }
-  else if (instruction.size == 2)
-  {
-    sprintf(buffer, "%s 0x%02X%02X", instruction.name.c_str(), operands.values[1], operands.values[0]);
-  }
-  return std::string(buffer);
 }

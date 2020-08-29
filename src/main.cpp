@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
     long last_ticks = gameboy.ticks;
     if (!gameboy.debugging)
     {
-      while (gameboy.ticks - last_ticks < 69905 && !gameboy.debugging)
+      while (gameboy.ticks - last_ticks < (OPS_PER_SEC / 60) && !gameboy.debugging)
       {
         gameboy.runTick();
       }
