@@ -30,6 +30,7 @@ GameBoy::GameBoy(std::string filename) : memory(this, filename, &keys), cpu(&(th
 
   memset(this->breakpoint_pc_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
   memset(this->breakpoint_memory_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+  memset(this->breakpoint_instruction_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
 }
 
 void GameBoy::fetchAndDecodeInstruction(uint8_t &instruction_code, Instruction &instruction, Operands &operands)
@@ -77,6 +78,16 @@ bool GameBoy::executeInstruction()
   {
     std::cout << "Breakpoint! 0x" << std::hex << this->cpu.registrers.pc << std::dec << std::endl;
     std::cout << "0x" << std::hex << (*it).first << std::dec << std::endl;
+    // Found a breakpoint
+    this->debugging = true;
+    this->breakpoint_trigger = &((*it).second);
+  }
+  // Check for instruction breakpoints
+  this->fetchAndDecodeInstruction(instruction_code, instruction, operands);
+  breakpoints = this->breakpoints[BreakpointType::INSTRUCTION];
+  it = breakpoints.find(static_cast<uint16_t>(instruction_code));
+  if (it != breakpoints.end())
+  {
     // Found a breakpoint
     this->debugging = true;
     this->breakpoint_trigger = &((*it).second);
@@ -175,8 +186,20 @@ void GameBoy::render()
     if (ImGui::CollapsingHeader("GPU"))
     {
       ImGui::Text("Mode: %s", gpu_mode_to_string(this->gpu.current_mode).c_str());
+      ImGui::SameLine();
       ImGui::Text("GPU Ticks: %d", this->gpu.gpu_ticks);
       ImGui::Text("Scan line: %d", *(this->gpu.scanline));
+      ImGui::Text("LY-C: %d", *(this->gpu.ly_c));
+      ImGui::Text("Scroll X: %d", *(this->gpu.scroll_x));
+      ImGui::SameLine();
+      ImGui::Text("Scroll Y: %d", *(this->gpu.scroll_y));
+      ImGui::Text("Window X: %d", *(this->gpu.window_x));
+      ImGui::SameLine();
+      ImGui::Text("Window Y: %d", *(this->gpu.window_y));
+      ImGui::Text("Window Y: %d", *(this->gpu.window_y));
+      ImGui::Text("LCD enabled: %s BG & W display: %s Sprite display: %s Window display: %s", bool_to_string(this->gpu.lcd_control->lcd_control_operation).c_str(), bool_to_string(this->gpu.lcd_control->bg_window_display).c_str(), bool_to_string(this->gpu.lcd_control->sprite_display).c_str(), bool_to_string(this->gpu.lcd_control->window_display).c_str());
+      ImGui::Text("Sprite size: %s", this->gpu.lcd_control->sprite_size ? "8x16" : "8x8");
+      ImGui::Text("BG Tile Map: (%d) %s BG Window Tile Data: (%d) %s Window Tile Map: (%d) %s", this->gpu.lcd_control->bg_tile_map_select, this->gpu.lcd_control->bg_tile_map_select ? "0x9C00" : "0x9800", this->gpu.lcd_control->bg_window_tile_data_select, this->gpu.lcd_control->bg_window_tile_data_select ? "0x8000" : "0x8800", this->gpu.lcd_control->window_tile_map_select, this->gpu.lcd_control->window_tile_map_select ? "0x9C00" : "0x9800");
     }
     if (ImGui::Checkbox("Debugging", &(this->debugging)))
     {
@@ -228,7 +251,15 @@ void GameBoy::render()
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 0, 0, 1.0));
             pushed_color = true;
           }
-          ImGui::Text("Address: 0x%04X Type: %s", breakpoint.first, breakpoint_type_to_string.at(breakpoint.second.type).c_str());
+          if (breakpoint.second.type != BreakpointType::INSTRUCTION)
+          {
+            ImGui::Text("Address: 0x%04X Type: %s", breakpoint.first, breakpoint_type_to_string.at(breakpoint.second.type).c_str());
+          }
+          else
+          {
+            ImGui::Text("Instruction: 0x%02X Type: %s", breakpoint.first, breakpoint_type_to_string.at(breakpoint.second.type).c_str());
+          }
+
           if (breakpoint.second.type == BreakpointType::MEMORY)
           {
             std::string mode;
@@ -297,6 +328,20 @@ void GameBoy::render()
         this->breakpoint_memory_read = true;
         Breakpoint breakpoint = {byte, BreakpointType::MEMORY, memory_action};
         init_if_absent<>(this->breakpoints, BreakpointType::MEMORY).insert(std::pair<uint16_t, Breakpoint>(byte, breakpoint));
+      }
+      entered_address = false;
+      ImGui::Text("Instruction:");
+      ImGui::SameLine();
+      ImGui::PushItemWidth(80);
+      entered_address |= ImGui::InputText("##address_instruction", this->breakpoint_instruction_input_buffer, BREAKPOINTS_BUFFER_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
+      ImGui::SameLine();
+      entered_address |= ImGui::Button("Add Instruction Breakpoint");
+      if (entered_address)
+      {
+        uint16_t byte = convert_string_to_hex(std::string(this->breakpoint_instruction_input_buffer));
+        memset(this->breakpoint_instruction_input_buffer, 0, BREAKPOINTS_BUFFER_LENGTH);
+        Breakpoint breakpoint = {byte, BreakpointType::INSTRUCTION};
+        init_if_absent<>(this->breakpoints, BreakpointType::INSTRUCTION).insert(std::pair<uint16_t, Breakpoint>(byte, breakpoint));
       }
     }
     ImGui::End();

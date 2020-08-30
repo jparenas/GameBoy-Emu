@@ -4,6 +4,7 @@
 #include <set>
 
 #include "gpu.h"
+#include "ops_util.h"
 
 std::string gpu_mode_to_string(const GPU_mode &mode)
 {
@@ -11,16 +12,12 @@ std::string gpu_mode_to_string(const GPU_mode &mode)
   {
   case GPU_mode::H_BLANK:
     return "H_BLANK";
-    break;
   case GPU_mode::V_BLANK:
     return "V_BLANK";
-    break;
   case GPU_mode::OAM:
     return "OAM";
-    break;
   case GPU_mode::VRAM:
     return "VRAM";
-    break;
   }
   assert(false);
   return "";
@@ -159,19 +156,19 @@ bool GPU::executeGPU(unsigned long ticks_elapsed)
 
 void GPU::renderScanline()
 {
-  if ((*(this->lcd_control)).bg_window_display)
+  if (this->lcd_control->bg_window_display)
   {
     // Tiles display
 
     bool using_window = false;
-    if ((*(this->lcd_control)).window_display && *(this->window_y) <= *(this->scanline))
+    if (this->lcd_control->window_display && *(this->window_y) <= *(this->scanline))
     {
       using_window = true;
     }
 
     bool sign = false;
     uint16_t tile_data_position;
-    if ((*(this->lcd_control)).bg_window_tile_data_select)
+    if (this->lcd_control->bg_window_tile_data_select)
     {
       tile_data_position = 0x8000;
     }
@@ -182,7 +179,7 @@ void GPU::renderScanline()
     }
 
     uint16_t background_map_position;
-    if ((!using_window && (*(this->lcd_control)).bg_tile_map_select) || (using_window && (*(this->lcd_control)).window_tile_map_select))
+    if ((!using_window && this->lcd_control->bg_tile_map_select) || (using_window && this->lcd_control->window_tile_map_select))
     {
       background_map_position = 0x9C00;
     }
@@ -192,20 +189,19 @@ void GPU::renderScanline()
     }
 
     uint8_t y_position;
-    if (!using_window)
+    if (using_window)
     {
-      y_position = *(this->scroll_y) + *(this->scanline);
+      y_position = *(this->scanline) - *(this->window_y);
     }
     else
     {
-      y_position = *(this->scanline) - *(this->window_y);
+      y_position = *(this->scroll_y) + *(this->scanline);
     }
 
     int tile_row = y_position / 8 * 32;
 
     for (int pixel = 0; pixel < OUTPUT_WIDTH; pixel++)
     {
-
       uint8_t x_position = pixel + *(this->scroll_x);
 
       // translate the current x pos to window space if necessary
@@ -220,17 +216,17 @@ void GPU::renderScanline()
         continue;
       }
 
-      int tile_col = (x_position / 8);
-      int tile_number;
+      uint16_t tile_col = (x_position / 8);
+      int16_t tile_number;
 
       uint16_t tile_address = background_map_position + tile_row + tile_col;
       if (sign)
       {
-        tile_number = (int8_t)this->memory->read_byte(tile_address, false);
+        tile_number = unsigned_8_to_signed(this->memory->read_byte(tile_address, false));
       }
       else
       {
-        tile_number = (uint8_t)this->memory->read_byte(tile_address, false);
+        tile_number = static_cast<uint16_t>(this->memory->read_byte(tile_address, false));
       }
 
       // deduce where this tile identifier is in memory
@@ -273,7 +269,7 @@ void GPU::renderScanline()
     }
   }
 
-  if ((*(this->lcd_control)).sprite_display)
+  if (this->lcd_control->sprite_display)
   {
     // Sprites display
     bool use_large_sprites = (*(this->lcd_control)).sprite_size;
@@ -283,7 +279,7 @@ void GPU::renderScanline()
     for (uint8_t sprite_num = 0; sprite_num < 40; sprite_num++)
     {
       uint8_t index = sprite_num * sizeof(Sprite);
-      Sprite *sprite = (Sprite *)this->memory->read_raw_byte(OAM_LOCATION + index);
+      Sprite *sprite = reinterpret_cast<Sprite *>(this->memory->read_raw_byte(OAM_LOCATION + index));
       //std::cout << std::dec << "Sprite: " << (int)sprite_num << " x pos: " << (int)sprite->x_pos << " y pos: " << (int)sprite->y_pos << " data: 0x" << std::hex << (int)this->memory[OAM_LOCATION + index] << this->memory[OAM_LOCATION + index + 1] << this->memory[OAM_LOCATION + index + 2] << this->memory[OAM_LOCATION + index + 3] << std::endl;
       if (*(this->scanline) >= sprite->y_pos - 16 && *(this->scanline) < sprite->y_pos + y_size - 16)
       {
@@ -295,8 +291,8 @@ void GPU::renderScanline()
     if (sprites_on_scanline.size() != 0)
     {
       auto sprites_iterator = sprites_on_scanline.rbegin();
-      int sprites_to_advance = (int)sprites_on_scanline.size() - MAX_SPRITES_PER_SCANLINE;
-      if (false && sprites_to_advance > 0)
+      int sprites_to_advance = static_cast<int>(sprites_on_scanline.size()) - MAX_SPRITES_PER_SCANLINE;
+      if (sprites_to_advance > 0)
       {
         std::advance(sprites_iterator, sprites_to_advance);
       }

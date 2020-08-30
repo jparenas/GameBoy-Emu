@@ -111,6 +111,7 @@ struct GameBoy
   bool breakpoints_window = false;
   char breakpoint_pc_input_buffer[BREAKPOINTS_BUFFER_LENGTH];
   char breakpoint_memory_input_buffer[BREAKPOINTS_BUFFER_LENGTH];
+  char breakpoint_instruction_input_buffer[BREAKPOINTS_BUFFER_LENGTH];
 
   bool breakpoint_memory_read = true;
   bool breakpoint_memory_write = false;

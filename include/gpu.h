@@ -88,7 +88,7 @@ struct LCD_Control
   bool lcd_control_operation : 1;
 };
 
-static_assert(sizeof(LCD_Control) == 1, "LCDC size is not correct");
+static_assert(sizeof(LCD_Control) == sizeof(uint8_t), "LCDC size is not correct");
 
 struct STAT_register
 {
@@ -101,7 +101,7 @@ struct STAT_register
   bool _pad : 1;
 };
 
-static_assert(sizeof(STAT_register) == 1, "STAT register size is not correct");
+static_assert(sizeof(STAT_register) == sizeof(uint8_t), "STAT register size is not correct");
 
 std::string gpu_mode_to_string(const GPU_mode &mode);
 
@@ -158,7 +158,7 @@ struct GPU
 
   void renderFramebuffer()
   {
-    if ((*(this->lcd_control)).lcd_control_operation) // Bit 7
+    if (this->lcd_control->lcd_control_operation) // Bit 7
     {
       glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, OUTPUT_WIDTH, OUTPUT_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, this->pixels);
