@@ -211,11 +211,7 @@ void GPU::renderScanline()
         x_position = pixel - *(this->window_x);
       }
 
-      // Check bounds
-      if ((x_position < 0) || (x_position > 159))
-      {
-        continue;
-      }
+      x_position = x_position % 256;
 
       uint16_t tile_col = (x_position / 8);
       int16_t tile_number;
@@ -276,19 +272,19 @@ void GPU::renderScanline()
     uint8_t y_size = this->lcd_control->sprite_size ? 16 : 8;
 
     std::multiset<Sprite *, decltype(&compare_sprites)> sprites_on_scanline(&compare_sprites);
-    for (uint8_t sprite_num = 0; sprite_num < 40; sprite_num++)
+    for (uint8_t sprite_num = 0; sprite_num < NUMBER_OF_SPRITES; sprite_num++)
     {
       uint8_t index = sprite_num * sizeof(Sprite);
       Sprite *sprite = reinterpret_cast<Sprite *>(this->memory->read_raw_byte(OAM_LOCATION + index));
       //std::cout << std::dec << "Sprite: " << (int)sprite_num << " x pos: " << (int)sprite->x_pos << " y pos: " << (int)sprite->y_pos << " data: 0x" << std::hex << (int)this->memory[OAM_LOCATION + index] << this->memory[OAM_LOCATION + index + 1] << this->memory[OAM_LOCATION + index + 2] << this->memory[OAM_LOCATION + index + 3] << std::endl;
-      if (*(this->scanline) >= sprite->y_pos - 16 && *(this->scanline) < sprite->y_pos + y_size - 16)
+      if (*(this->scanline) >= sprite->y_pos - 16 && *(this->scanline) < sprite->y_pos - 16 + y_size)
       {
         //std::cout << "Sprite on scanline " << (int)*(this->scanline) << " " << (int)sprite_num << std::endl;
         sprites_on_scanline.insert(sprite);
       }
     }
 
-    if (sprites_on_scanline.size() != 0)
+    if (!sprites_on_scanline.empty())
     {
       auto sprites_iterator = sprites_on_scanline.rbegin();
       int sprites_to_advance = static_cast<int>(sprites_on_scanline.size()) - MAX_SPRITES_PER_SCANLINE;
@@ -298,23 +294,25 @@ void GPU::renderScanline()
       }
       for (; sprites_iterator != sprites_on_scanline.rend(); std::advance(sprites_iterator, 1))
       {
-        Sprite sprite = **sprites_iterator;
-        int line = *(this->scanline) - (sprite.y_pos - 16);
+        Sprite *sprite = *sprites_iterator;
+        int line = *(this->scanline) - (sprite->y_pos - 16);
 
-        if (sprite.y_flip)
+        if (sprite->y_flip)
         {
           line = y_size - line;
         }
+        assert(line <= y_size && line >= 0);
 
         line *= 2;
 
-        uint16_t sprite_data_address = (VRAM_POSITION + (sprite.tile_location * y_size * 2)) + line;
+        uint8_t pattern_number = y_size == 16 ? sprite->tile_location & 0b11111110 : sprite->tile_location;
+        uint16_t sprite_data_address = (VRAM_POSITION + (pattern_number * 16)) + line;
         uint8_t data1 = this->memory->read_byte(sprite_data_address, false);
         uint8_t data2 = this->memory->read_byte(sprite_data_address + 1, false);
 
         for (int8_t pixel = 7; pixel >= 0; pixel--)
         {
-          int16_t x_position = (sprite.x_pos - 8) + 7 - pixel;
+          int16_t x_position = (sprite->x_pos - 8) + 7 - pixel;
           if (x_position < 0 || x_position >= OUTPUT_WIDTH)
           {
             continue;
@@ -322,25 +320,25 @@ void GPU::renderScanline()
 
           //std::cout << "Rendering pixel " << std::dec << 7 - (int)pixel << " at " << (sprite.x_pos - 8) + 7 - pixel << std::endl;
           int color_bit = pixel;
-          if (sprite.x_flip)
+          if (sprite->x_flip)
           {
             color_bit = 7 - color_bit;
           }
 
-          uint8_t pixel_color = data2 >> color_bit & 0x01;
+          uint8_t pixel_color = (data2 >> color_bit) & 0x01;
           pixel_color <<= 1;
-          pixel_color |= data1 >> color_bit & 0x01;
+          pixel_color |= (data1 >> color_bit) & 0x01;
 
-          uint16_t sprite_palette = sprite.palette ? SPRITE_1_PALETTE_POSITION : SPRITE_0_PALETTE_POSITION;
+          uint16_t sprite_palette = sprite->palette ? SPRITE_1_PALETTE_POSITION : SPRITE_0_PALETTE_POSITION;
 
-          Color color = getColorFromPalette(pixel_color, sprite_palette);
-
-          if (color == palette[0] || (sprite.priority && this->pixels[this->getIndex(x_position, *(this->scanline))] != palette[0]))
+          if (pixel_color == 0 || (sprite->priority && this->pixels[this->getIndex(x_position, *(this->scanline))] != palette[getColorIndexFromPalette(0, BACKGROUND_PALETTE_POSITION)]))
           {
             continue;
           }
 
-          this->pixels[this->getIndex(x_position, *(this->scanline))] = color;
+          uint16_t color_index = getColorIndexFromPalette(pixel_color, sprite_palette);
+
+          this->pixels[this->getIndex(x_position, *(this->scanline))] = palette[color_index];
         }
       }
     }

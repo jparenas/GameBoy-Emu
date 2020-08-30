@@ -3,7 +3,8 @@
 #define OUTPUT_WIDTH 160
 #define OUTPUT_HEIGHT 144
 
-#define MAX_SPRITES_PER_SCANLINE 15
+#define NUMBER_OF_SPRITES 40
+#define MAX_SPRITES_PER_SCANLINE 10
 
 #define OAM_TIME 80
 
@@ -37,6 +38,8 @@ struct Sprite
     bool priority : 1;
   };
 };
+
+static_assert(sizeof(Sprite) == sizeof(uint8_t) * 4);
 
 inline bool compare_sprites(Sprite *lhs, Sprite *rhs)
 {
@@ -141,14 +144,19 @@ struct GPU
 
   void renderScanline();
 
-  Color getColorFromPalette(uint8_t color, uint16_t palette_address)
+  uint16_t getColorIndexFromPalette(uint8_t color, uint16_t palette_address)
   {
     uint8_t color_position = color * 2;
     uint8_t color_palette = this->memory->read_byte(palette_address, false) >> (color_position + 1) & 0x01;
     color_palette <<= 1;
     color_palette |= this->memory->read_byte(palette_address, false) >> color_position & 0x01;
 
-    return palette[color_palette];
+    return color_palette;
+  }
+
+  Color getColorFromPalette(uint8_t color, uint16_t palette_address)
+  {
+    return palette[this->getColorIndexFromPalette(color, palette_address)];
   }
 
   unsigned int getIndex(uint8_t x, uint8_t y)
