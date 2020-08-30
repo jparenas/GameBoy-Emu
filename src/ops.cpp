@@ -1577,14 +1577,7 @@ void stop(GameBoy &gameboy, Operands &operands)
 
 void halt(GameBoy &gameboy, Operands &operands)
 {
-  if (gameboy.cpu.registrers.ime)
-  {
-    gameboy.halted = true;
-  }
-  else
-  {
-    gameboy.cpu.registrers.pc += 1;
-  }
+  gameboy.halted = true;
 }
 
 const Instruction instruction_set[256] = {

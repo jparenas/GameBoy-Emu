@@ -86,6 +86,7 @@ bool GPU::executeGPU(unsigned long ticks_elapsed)
 
         if (*(this->scanline) == 143)
         {
+          this->renderFramebuffer();
           this->cpu->register_interrupt(INTERRUPT_VBLANK);
           this->current_mode = GPU_mode::V_BLANK;
           if (this->stat->v_blank_interrupt_enable)
@@ -272,8 +273,7 @@ void GPU::renderScanline()
   if (this->lcd_control->sprite_display)
   {
     // Sprites display
-    bool use_large_sprites = (*(this->lcd_control)).sprite_size;
-    uint8_t y_size = use_large_sprites ? 16 : 8;
+    uint8_t y_size = this->lcd_control->sprite_size ? 16 : 8;
 
     std::multiset<Sprite *, decltype(&compare_sprites)> sprites_on_scanline(&compare_sprites);
     for (uint8_t sprite_num = 0; sprite_num < 40; sprite_num++)
@@ -303,7 +303,7 @@ void GPU::renderScanline()
 
         if (sprite.y_flip)
         {
-          line = y_size - line - 1;
+          line = y_size - line;
         }
 
         line *= 2;

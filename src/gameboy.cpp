@@ -97,17 +97,19 @@ bool GameBoy::executeInstruction()
 
 bool GameBoy::executeInterrupts()
 {
-  if (this->cpu.registrers.ime && *(this->cpu.interrupt_enable) && *(this->cpu.interrupt_flags))
+  if (*(this->cpu.interrupt_flags))
+  {
+    this->halted = false;
+  }
+  if (this->cpu.registrers.ime && (*(this->cpu.interrupt_enable) & *(this->cpu.interrupt_flags)))
   {
     uint8_t enabled_flags = *(this->cpu.interrupt_enable) & *(this->cpu.interrupt_flags);
     if (enabled_flags)
     {
-      this->halted = false;
       if (enabled_flags & INTERRUPT_VBLANK)
       {
         // std::cout << "Calling VBLANK interrupt " << std::endl;
         *(this->cpu.interrupt_flags) &= ~INTERRUPT_VBLANK;
-        this->gpu.renderFramebuffer();
         this->cpu.registrers.ime = false;
         write_short_to_stack(*this, this->cpu.registrers.pc);
         this->cpu.registrers.pc = INTERRUPT_VBLANK_INSTRUCTION;
@@ -169,7 +171,8 @@ void GameBoy::render()
       ImGui::Text("PC: 0x%04X", this->cpu.registrers.pc);
       ImGui::Text("SP: 0x%04X", this->cpu.registrers.sp);
       ImGui::Text("Interrupts enabled: %s", bool_to_string(this->cpu.registrers.ime).c_str());
-      ImGui::Text("V Blank: %s STAT: %s Timer: %s Joy Pad: %s Serial: %s", bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_VBLANK).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_STAT).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_TIMER).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_JOYPAD).c_str(), bool_to_string(*(this->cpu.interrupt_flags) | INTERRUPT_SERIAL).c_str());
+      ImGui::Text("IF V Blank: %s STAT: %s Timer: %s Joy Pad: %s Serial: %s", bool_to_string(*(this->cpu.interrupt_flags) & INTERRUPT_VBLANK).c_str(), bool_to_string(*(this->cpu.interrupt_flags) & INTERRUPT_STAT).c_str(), bool_to_string(*(this->cpu.interrupt_flags) & INTERRUPT_TIMER).c_str(), bool_to_string(*(this->cpu.interrupt_flags) & INTERRUPT_JOYPAD).c_str(), bool_to_string(*(this->cpu.interrupt_flags) & INTERRUPT_SERIAL).c_str());
+      ImGui::Text("IE V Blank: %s STAT: %s Timer: %s Joy Pad: %s Serial: %s", bool_to_string(*(this->cpu.interrupt_enable) & INTERRUPT_VBLANK).c_str(), bool_to_string(*(this->cpu.interrupt_enable) & INTERRUPT_STAT).c_str(), bool_to_string(*(this->cpu.interrupt_enable) & INTERRUPT_TIMER).c_str(), bool_to_string(*(this->cpu.interrupt_enable) & INTERRUPT_JOYPAD).c_str(), bool_to_string(*(this->cpu.interrupt_enable) & INTERRUPT_SERIAL).c_str());
       ImGui::Text("Ticks: %ld", this->ticks);
       ImGui::Text("Last Executed OP: %s", format_instruction(this->last_instruction_code, this->last_operands).c_str());
       uint8_t next_instruction_code;
@@ -181,7 +184,11 @@ void GameBoy::render()
     if (ImGui::CollapsingHeader("Timers"))
     {
       ImGui::Text("Divider: %d", *(this->div_register));
+      ImGui::Text("Timer enabled: %d", (this->memory.read_byte(TAC_REGISTER_POSITION, false) & 0b00000100) >> 2);
+      ImGui::Text("Timer mode: %d", (this->memory.read_byte(TAC_REGISTER_POSITION, false) & 0b00000011));
+      ImGui::Text("Timer modulo: %d", (this->memory.read_byte(TMA_REGISTER_POSITION, false)));
       ImGui::Text("Timer: %d", *(this->tima_register));
+      ImGui::Text("Timer Counter: %d", this->timer_counter);
     }
     if (ImGui::CollapsingHeader("GPU"))
     {

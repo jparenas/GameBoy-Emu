@@ -85,7 +85,7 @@ struct GameBoy
   uint8_t *div_register;
   uint8_t *tima_register;
 
-  int16_t timer_counter;
+  int32_t timer_counter;
 
   Keys keys;
 
@@ -129,7 +129,7 @@ struct GameBoy
       if (this->timer_counter <= 0)
       {
         // Reset Timer Counter
-        this->timer_counter = timer_ticks[(this->memory.read_byte(TAC_REGISTER_POSITION, false) & 0b00000011, false)] + this->timer_counter;
+        this->timer_counter = timer_ticks[(this->memory.read_byte(TAC_REGISTER_POSITION, false) & 0b00000011)] + this->timer_counter;
         if (*(this->tima_register) == 255)
         {
           // Set TIMER interrupt
@@ -225,8 +225,8 @@ struct GameBoy
         break;
       }
 
-      p14_change = this->memory.read_byte(JOYPAD_LOCATION, false) >> 4 != p14_change;
-      p15_change = this->memory.read_byte(JOYPAD_LOCATION, false) >> 5 != p15_change;
+      p14_change = this->memory.read_byte(JOYPAD_LOCATION, false) >> 4 == 0 && p14_change;
+      p15_change = this->memory.read_byte(JOYPAD_LOCATION, false) >> 5 == 0 && p15_change;
 
       if (p14_change || p15_change)
       {
