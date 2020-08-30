@@ -784,7 +784,7 @@ const struct ExtendedInstruction extended_instruction_set[256] = {
     {"SET 1, E", 8, set_e<1>},         // 0xcb
     {"SET 1, H", 8, set_h<1>},         // 0xcc
     {"SET 1, L", 8, set_l<1>},         // 0xcd
-    {"SET 1, (HL)", 12, set_hlp<2>},   // 0xce
+    {"SET 1, (HL)", 12, set_hlp<1>},   // 0xce
     {"SET 1, A", 8, set_a<1>},         // 0xcf
     {"SET 2, B", 8, set_b<2>},         // 0xd0
     {"SET 2, C", 8, set_c<2>},         // 0xd1
