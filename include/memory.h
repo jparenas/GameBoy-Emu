@@ -59,7 +59,9 @@ enum class MBC
 {
   NONE,
   MBC_1,
-  MBC_2
+  MBC_2,
+  MBC_3,
+  MBC_5
 };
 
 struct GameBoy;

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -83,18 +84,39 @@ void Memory::read_ROM(std::string filename)
   std::cout << "MBC Type: ";
   switch (this->rom[MBC_TYPE_OFFSET])
   {
-  case 1:
-  case 2:
-  case 3:
+  case 0x1:
+  case 0x2:
+  case 0x3:
     std::cout << "MBC 1";
     this->mbc_type = MBC::MBC_1;
     this->enable_ram_write = false;
     break;
-  case 5:
-  case 6:
+  case 0x5:
+  case 0x6:
     std::cout << "MBC 2";
     this->mbc_type = MBC::MBC_2;
     this->enable_ram_write = false;
+    break;
+  case 0xF:
+  case 0x10:
+  case 0x11:
+  case 0x12:
+  case 0x13:
+    std::cout << "MBC 3";
+    this->mbc_type = MBC::MBC_3;
+    this->enable_ram_write = false;
+    this->set_rom_banking = true;
+    break;
+  case 0x19:
+  case 0x1A:
+  case 0x1B:
+  case 0x1C:
+  case 0x1D:
+  case 0x1E:
+    std::cout << "MBC 5";
+    this->mbc_type = MBC::MBC_5;
+    this->enable_ram_write = false;
+    assert(false && !"Not implemented");
     break;
   default:
     std::cout << "None";
@@ -211,7 +233,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     // Banking Handling
     if (address < 0x2000)
     {
-      if (this->mbc_type == MBC::MBC_1 || (this->mbc_type == MBC::MBC_2 && (address >> 4 & 0x01) == 0))
+      if ((this->mbc_type == MBC::MBC_1 || this->mbc_type == MBC::MBC_3) || (this->mbc_type == MBC::MBC_2 && (address >> 4 & 0x01) == 0))
       {
         if ((value & 0x0F) == 0x0A)
         {
@@ -225,9 +247,16 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     }
     else if (address >= 0x2000 && address < 0x4000)
     {
-      if (this->mbc_type == MBC::MBC_1)
+      if (this->mbc_type == MBC::MBC_1 || this->mbc_type == MBC::MBC_3)
       {
-        this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+        if (this->mbc_type == MBC::MBC_1)
+        {
+          this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+        }
+        else if (this->mbc_type == MBC::MBC_3)
+        {
+          this->current_rom_bank = (this->current_rom_bank & 0b10000000) | (value & 0b01111111);
+        }
         if (this->current_rom_bank == 0)
         {
           this->current_rom_bank = 1;
@@ -244,11 +273,18 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     }
     else if (address >= 0x4000 && address < 0x6000)
     {
-      if (this->mbc_type == MBC::MBC_1)
+      if (this->mbc_type == MBC::MBC_1 || this->mbc_type == MBC::MBC_3)
       {
         if (this->set_rom_banking)
         {
-          this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+          if (this->mbc_type == MBC::MBC_1)
+          {
+            this->current_rom_bank = (this->current_rom_bank & 0b11100000) | (value & 0b00011111);
+          }
+          else if (this->mbc_type == MBC::MBC_3)
+          {
+            this->current_rom_bank = (this->current_rom_bank & 0b10000000) | (value & 0b01111111);
+          }
           if (this->current_rom_bank == 0)
           {
             this->current_rom_bank = 1;
@@ -262,7 +298,7 @@ void Memory::write_byte(uint16_t address, uint8_t value)
     }
     else if (address >= 0x6000 && address < 0x8000)
     {
-      if (this->mbc_type == MBC::MBC_1)
+      if (this->mbc_type == MBC::MBC_1 || this->mbc_type == MBC::MBC_3)
       {
         this->set_rom_banking = (value & 0x01) == 0;
         this->current_ram_bank = 0;
