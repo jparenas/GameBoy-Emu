@@ -1221,6 +1221,15 @@ void jp_nc(GameBoy &gameboy, Operands &operands)
   }
 }
 
+void jp_c(GameBoy &gameboy, Operands &operands)
+{
+  if (gameboy.cpu.registrers.f.c)
+  {
+    gameboy.ticks += 1;
+    gameboy.cpu.registrers.pc = convert_uint8_to_uint16(operands.values[1], operands.values[0]);
+  }
+}
+
 void and_base(GameBoy &gameboy, uint8_t value)
 {
   gameboy.cpu.registrers.a = value & gameboy.cpu.registrers.a;
@@ -1470,49 +1479,45 @@ void rst_0x38(GameBoy &gameboy, Operands &operands)
 void daa(GameBoy &gameboy, Operands &operands)
 {
   /*
-  uint8_t correction_factor = 0x00;
-  if (gameboy.cpu.registrers.a > 0x99 || gameboy.cpu.registrers.f.c)
-  {
-    correction_factor |= 0x60;
-    gameboy.cpu.registrers.f.c = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.c = 0;
-  }
-
-  if ((gameboy.cpu.registrers.a & 0x0F) > 0x09 || gameboy.cpu.registrers.f.h)
+  uint8_t a_register = gameboy.cpu.registrers.a;
+  uint16_t correction_factor = gameboy.cpu.registrers.f.c ? 0x60 : 0x00;
+  if (gameboy.cpu.registrers.f.h || (!gameboy.cpu.registrers.f.n && ((a_register & 0x0F) > 0x09)))
   {
     correction_factor |= 0x06;
   }
-
-  if (!gameboy.cpu.registrers.f.n)
+  if (gameboy.cpu.registrers.f.c || (!gameboy.cpu.registrers.f.n && a_register > 0x90))
   {
-    gameboy.cpu.registrers.a += correction_factor;
-  }
-  else
-  {
-    gameboy.cpu.registrers.a -= correction_factor;
+    correction_factor |= 0x60;
   }
 
-  if (gameboy.cpu.registrers.a == 0)
-  {
-    gameboy.cpu.registrers.f.z = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.z = 0;
-  }
-  */
-  uint16_t value = static_cast<uint16_t>(operands.values[0]);
   if (gameboy.cpu.registrers.f.n)
   {
-    if (gameboy.cpu.registrers.f.c || value > 0x99)
+    a_register = static_cast<uint8_t>(a_register - correction_factor);
+  }
+  else
+  {
+    a_register = static_cast<uint8_t>(a_register + correction_factor);
+  }
+
+  if ((correction_factor << 2) & 0x100)
+  {
+    gameboy.cpu.registrers.f.c = 1;
+  }
+
+  gameboy.cpu.registrers.f.h = 0;
+  gameboy.cpu.registrers.f.z = a_register == 0;
+  gameboy.cpu.registrers.a = a_register;
+  /*/
+  uint8_t a_register = gameboy.cpu.registrers.a;
+  uint16_t value = static_cast<uint16_t>(gameboy.cpu.registrers.a);
+  if (!gameboy.cpu.registrers.f.n)
+  {
+    if (gameboy.cpu.registrers.f.c || a_register > 0x99)
     {
       value += 0x60;
-      gameboy.cpu.registrers.f.c = true;
+      gameboy.cpu.registrers.f.c = 1;
     }
-    if (gameboy.cpu.registrers.f.h || (value & 0x0F) > 0x09)
+    if (gameboy.cpu.registrers.f.h || (a_register & 0x0F) > 0x09)
     {
       value += 0x06;
     }
@@ -1526,12 +1531,11 @@ void daa(GameBoy &gameboy, Operands &operands)
     if (gameboy.cpu.registrers.f.c)
     {
       value -= 0x60;
-      gameboy.cpu.registrers.f.c = true;
     }
   }
-  gameboy.cpu.registrers.f.z = value == 0;
-  gameboy.cpu.registrers.f.h = 0;
   gameboy.cpu.registrers.a = static_cast<uint8_t>(value & 0xFF);
+  gameboy.cpu.registrers.f.z = gameboy.cpu.registrers.a == 0;
+  gameboy.cpu.registrers.f.h = 0;
 }
 
 void cpl(GameBoy &gameboy, Operands &operands)
@@ -1802,7 +1806,7 @@ const Instruction instruction_set[256] = {
     {"RST 0x10", 0, 8, rst_0x10},               // 0xd7
     {"RET C", 0, 2, ret_c},                     // 0xd8
     {"RETI", 0, 4, reti},                       // 0xd9
-    {"JP C, 0x%04X", 2, 0, NULL},               // 0xda
+    {"JP C, 0x%04X", 2, 3, jp_c},               // 0xda
     {"UNKNOWN", 0, 0, NULL},                    // 0xdb
     {"CALL C, 0x%04X", 2, 3, call_c},           // 0xdc
     {"UNKNOWN", 0, 0, NULL},                    // 0xdd
