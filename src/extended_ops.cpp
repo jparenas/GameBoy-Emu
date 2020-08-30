@@ -106,6 +106,90 @@ void rl_hlp(GameBoy &gameboy)
   gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
 }
 
+void rlc_a(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.a);
+}
+
+void rlc_b(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.b);
+}
+
+void rlc_c(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.c);
+}
+
+void rlc_d(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.d);
+}
+
+void rlc_e(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.e);
+}
+
+void rlc_h(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.h);
+}
+
+void rlc_l(GameBoy &gameboy)
+{
+  rlc(gameboy, gameboy.cpu.registrers.l);
+}
+
+void rlc_hlp(GameBoy &gameboy)
+{
+  uint8_t value = gameboy.memory.read_byte(gameboy.cpu.registrers.hl);
+  rlc(gameboy, value);
+  gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
+}
+
+void rrc_a(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.a);
+}
+
+void rrc_b(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.b);
+}
+
+void rrc_c(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.c);
+}
+
+void rrc_d(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.d);
+}
+
+void rrc_e(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.e);
+}
+
+void rrc_h(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.h);
+}
+
+void rrc_l(GameBoy &gameboy)
+{
+  rrc(gameboy, gameboy.cpu.registrers.l);
+}
+
+void rrc_hlp(GameBoy &gameboy)
+{
+  uint8_t value = gameboy.memory.read_byte(gameboy.cpu.registrers.hl);
+  rrc(gameboy, value);
+  gameboy.memory.write_byte(gameboy.cpu.registrers.hl, value);
+}
+
 void sla_a(GameBoy &gameboy)
 {
   sla(gameboy, gameboy.cpu.registrers.a);
@@ -494,22 +578,22 @@ void reset_hlp(GameBoy &gameboy)
 }
 
 const struct ExtendedInstruction extended_instruction_set[256] = {
-    {"RLC B", 8, NULL},                // 0x00
-    {"RLC C", 8, NULL},                // 0x01
-    {"RLC D", 8, NULL},                // 0x02
-    {"RLC E", 8, NULL},                // 0x03
-    {"RLC H", 8, NULL},                // 0x04
-    {"RLC L", 8, NULL},                // 0x05
-    {"RLC (HL)", 16, NULL},            // 0x06
-    {"RLC A", 8, NULL},                // 0x07
-    {"RRC B", 8, NULL},                // 0x08
-    {"RRC C", 8, NULL},                // 0x09
-    {"RRC D", 8, NULL},                // 0x0a
-    {"RRC E", 8, NULL},                // 0x0b
-    {"RRC H", 8, NULL},                // 0x0c
-    {"RRC L", 8, NULL},                // 0x0d
-    {"RRC (HL)", 16, NULL},            // 0x0e
-    {"RRC A", 8, NULL},                // 0x0f
+    {"RLC B", 8, rlc_b},               // 0x00
+    {"RLC C", 8, rlc_c},               // 0x01
+    {"RLC D", 8, rlc_d},               // 0x02
+    {"RLC E", 8, rlc_e},               // 0x03
+    {"RLC H", 8, rlc_h},               // 0x04
+    {"RLC L", 8, rlc_l},               // 0x05
+    {"RLC (HL)", 16, rlc_hlp},         // 0x06
+    {"RLC A", 8, rlc_a},               // 0x07
+    {"RRC B", 8, rrc_b},               // 0x08
+    {"RRC C", 8, rrc_c},               // 0x09
+    {"RRC D", 8, rrc_d},               // 0x0a
+    {"RRC E", 8, rrc_e},               // 0x0b
+    {"RRC H", 8, rrc_h},               // 0x0c
+    {"RRC L", 8, rrc_l},               // 0x0d
+    {"RRC (HL)", 16, rrc_hlp},         // 0x0e
+    {"RRC A", 8, rrc_a},               // 0x0f
     {"RL B", 8, rl_b},                 // 0x10
     {"RL C", 8, rl_c},                 // 0x11
     {"RL D", 8, rl_d},                 // 0x12
@@ -581,7 +665,7 @@ const struct ExtendedInstruction extended_instruction_set[256] = {
     {"BIT 2, H", 8, bit_h<2>},         // 0x54
     {"BIT 2, L", 8, bit_l<2>},         // 0x55
     {"BIT 2, (HL)", 12, bit_hlp<2>},   // 0x56
-    {"BIT 2, A", 8, bit_h<2>},         // 0x57
+    {"BIT 2, A", 8, bit_a<2>},         // 0x57
     {"BIT 3, B", 8, bit_b<3>},         // 0x58
     {"BIT 3, C", 8, bit_c<3>},         // 0x59
     {"BIT 3, D", 8, bit_d<3>},         // 0x5a
@@ -613,7 +697,7 @@ const struct ExtendedInstruction extended_instruction_set[256] = {
     {"BIT 6, H", 8, bit_h<6>},         // 0x74
     {"BIT 6, L", 8, bit_l<6>},         // 0x75
     {"BIT 6, (HL)", 12, bit_hlp<6>},   // 0x76
-    {"BIT 6, A", 8, bit_a<7>},         // 0x77
+    {"BIT 6, A", 8, bit_a<6>},         // 0x77
     {"BIT 7, B", 8, bit_b<7>},         // 0x78
     {"BIT 7, C", 8, bit_c<7>},         // 0x79
     {"BIT 7, D", 8, bit_d<7>},         // 0x7a

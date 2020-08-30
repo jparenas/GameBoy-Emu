@@ -334,27 +334,13 @@ void ld_l_hlp(GameBoy &gameboy, Operands &operands)
 
 void ld_hl_sp_n(GameBoy &gameboy, Operands &operands)
 {
-  uint16_t result = (uint16_t)gameboy.cpu.registrers.sp + unsigned_8_to_signed(operands.values[0]);
+  int8_t value = unsigned_8_to_signed(operands.values[0]);
+  int result = static_cast<int>(gameboy.cpu.registrers.sp + value);
 
-  if (result & 0xFF00)
-  {
-    gameboy.cpu.registrers.f.c = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.c = 0;
-  }
+  gameboy.cpu.registrers.f.h = ((gameboy.cpu.registrers.sp ^ value ^ (result & 0xFFFF)) & 0x10) == 0x10;
+  gameboy.cpu.registrers.f.c = ((gameboy.cpu.registrers.sp ^ value ^ (result & 0xFFFF)) & 0x100) == 0x100;
 
-  if ((gameboy.cpu.registrers.sp & 0x0F) + ((unsigned_8_to_signed(operands.values[0])) & 0x0F) > 0x0F)
-  {
-    gameboy.cpu.registrers.f.h = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.h = 0;
-  }
-
-  gameboy.cpu.registrers.hl = result;
+  gameboy.cpu.registrers.hl = static_cast<uint16_t>(result);
 
   gameboy.cpu.registrers.f.z = 0;
   gameboy.cpu.registrers.f.n = 0;
@@ -601,21 +587,25 @@ void pop_hl(GameBoy &gameboy, Operands &operands)
 void rlca(GameBoy &gameboy, Operands &operands)
 {
   rlc(gameboy, gameboy.cpu.registrers.a);
+  gameboy.cpu.registrers.f.z = 0;
 }
 
 void rla(GameBoy &gameboy, Operands &operands)
 {
   rl(gameboy, gameboy.cpu.registrers.a);
+  gameboy.cpu.registrers.f.z = 0;
 }
 
 void rrca(GameBoy &gameboy, Operands &operands)
 {
   rrc(gameboy, gameboy.cpu.registrers.a);
+  gameboy.cpu.registrers.f.z = 0;
 }
 
 void rra(GameBoy &gameboy, Operands &operands)
 {
   rr(gameboy, gameboy.cpu.registrers.a);
+  gameboy.cpu.registrers.f.z = 0;
 }
 
 void cp_base(GameBoy &gameboy, uint8_t value)
@@ -866,38 +856,14 @@ void dec_sp(GameBoy &gameboy, Operands &operands)
 
 void add_base(GameBoy &gameboy, uint8_t value)
 {
-  uint16_t result = (uint16_t)((uint16_t)gameboy.cpu.registrers.a + value);
+  uint16_t result = static_cast<uint16_t>(static_cast<uint16_t>(gameboy.cpu.registrers.a) + value);
 
-  if ((result & 0xFF) == 0x0)
-  {
-    gameboy.cpu.registrers.f.z = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.z = 0;
-  }
-
-  if (result & 0xFF00)
-  {
-    gameboy.cpu.registrers.f.c = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.c = 0;
-  }
-
-  if ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) & 0xF0)
-  {
-    gameboy.cpu.registrers.f.h = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.h = 0;
-  }
-
-  gameboy.cpu.registrers.a = (uint8_t)(result & 0xFF);
-
+  gameboy.cpu.registrers.f.z = (result & 0xFF) == 0;
+  gameboy.cpu.registrers.f.c = result & 0xFF00;
+  gameboy.cpu.registrers.f.h = (gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) > 0x0F;
   gameboy.cpu.registrers.f.n = 0;
+
+  gameboy.cpu.registrers.a = static_cast<uint8_t>(result & 0xFF);
 }
 
 void add_a_a(GameBoy &gameboy, Operands &operands)
@@ -947,27 +913,13 @@ void add_a_n(GameBoy &gameboy, Operands &operands)
 
 void add_sp_n(GameBoy &gameboy, Operands &operands)
 {
-  uint16_t result = (uint16_t)gameboy.cpu.registrers.sp + unsigned_8_to_signed(operands.values[0]);
+  int8_t value = unsigned_8_to_signed(operands.values[0]);
+  int result = static_cast<int>(gameboy.cpu.registrers.sp + value);
 
-  if (result & 0xFF00)
-  {
-    gameboy.cpu.registrers.f.c = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.c = 0;
-  }
+  gameboy.cpu.registrers.f.h = ((gameboy.cpu.registrers.sp ^ value ^ (result & 0xFFFF)) & 0x10) == 0x10;
+  gameboy.cpu.registrers.f.c = ((gameboy.cpu.registrers.sp ^ value ^ (result & 0xFFFF)) & 0x100) == 0x100;
 
-  if ((gameboy.cpu.registrers.sp & 0x0F) + ((unsigned_8_to_signed(operands.values[0])) & 0x0F) > 0x0F)
-  {
-    gameboy.cpu.registrers.f.h = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.h = 0;
-  }
-
-  gameboy.cpu.registrers.sp = (uint8_t)result;
+  gameboy.cpu.registrers.sp = static_cast<uint16_t>(result);
 
   gameboy.cpu.registrers.f.z = 0;
   gameboy.cpu.registrers.f.n = 0;
@@ -1022,8 +974,15 @@ void add_hl_sp(GameBoy &gameboy, Operands &operands)
 
 void adc_base(GameBoy &gameboy, uint8_t value)
 {
-  value += gameboy.cpu.registrers.f.c;
-  add_base(gameboy, value);
+  bool carry_flag = gameboy.cpu.registrers.f.c;
+  uint16_t result = static_cast<uint16_t>(static_cast<uint16_t>(gameboy.cpu.registrers.a) + value + carry_flag);
+
+  gameboy.cpu.registrers.f.z = (result & 0xFF) == 0;
+  gameboy.cpu.registrers.f.c = result & 0xFF00;
+  gameboy.cpu.registrers.f.h = ((gameboy.cpu.registrers.a & 0x0F) + (value & 0x0F) + carry_flag) > 0x0F;
+  gameboy.cpu.registrers.f.n = 0;
+
+  gameboy.cpu.registrers.a = static_cast<uint8_t>(result & 0xFF);
 }
 
 void adc_a(GameBoy &gameboy, Operands &operands)
@@ -1073,34 +1032,12 @@ void adc_n(GameBoy &gameboy, Operands &operands)
 
 void sub_base(GameBoy &gameboy, uint8_t value)
 {
-  if ((value & 0x0F) > (gameboy.cpu.registrers.a & 0x0F))
-  {
-    gameboy.cpu.registrers.f.h = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.h = 0;
-  }
-
-  if (value > gameboy.cpu.registrers.a)
-  {
-    gameboy.cpu.registrers.f.c = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.c = 0;
-  }
+  gameboy.cpu.registrers.f.h = (value & 0x0F) > (gameboy.cpu.registrers.a & 0x0F);
+  gameboy.cpu.registrers.f.c = value > gameboy.cpu.registrers.a;
 
   gameboy.cpu.registrers.a -= value;
 
-  if (gameboy.cpu.registrers.a == 0)
-  {
-    gameboy.cpu.registrers.f.z = 1;
-  }
-  else
-  {
-    gameboy.cpu.registrers.f.z = 0;
-  }
+  gameboy.cpu.registrers.f.z = gameboy.cpu.registrers.a == 0;
   gameboy.cpu.registrers.f.n = 1;
 }
 
@@ -1151,8 +1088,14 @@ void sub_n(GameBoy &gameboy, Operands &operands)
 
 void sbc_base(GameBoy &gameboy, uint8_t value)
 {
-  value += gameboy.cpu.registrers.f.c;
-  sub_base(gameboy, value);
+  uint8_t carry_flag = gameboy.cpu.registrers.f.c;
+  gameboy.cpu.registrers.f.h = (value & 0x0F) + carry_flag > (gameboy.cpu.registrers.a & 0x0F);
+  gameboy.cpu.registrers.f.c = value + carry_flag > gameboy.cpu.registrers.a;
+
+  gameboy.cpu.registrers.a -= value + carry_flag;
+
+  gameboy.cpu.registrers.f.z = gameboy.cpu.registrers.a == 0;
+  gameboy.cpu.registrers.f.n = 1;
 }
 
 void sbc_a(GameBoy &gameboy, Operands &operands)
